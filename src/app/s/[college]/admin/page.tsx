@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Check, Circle, ImagePlus } from "lucide-react";
 import { StatRow } from "@/components/admin/StatRow";
 import { Flash } from "@/components/admin/PageHeader";
 import { StatusPill, UrgentBadge } from "@/components/ui/Badges";
@@ -45,6 +46,33 @@ export default async function AdminDashboard({ params, searchParams }: { params:
           {ctx.isCollegeAdmin ? <Link href={p("/admin/departments/new")} className="btn-secondary">Add department</Link> : null}
         </div>
       </div>
+
+      {ctx.isCollegeAdmin && (!ctx.college.logo_url || !ctx.college.cover_image_url) ? (
+        <section aria-labelledby="brand-heading" className="panel flex flex-wrap items-center gap-5 p-5">
+          <span className="flex size-12 shrink-0 items-center justify-center rounded-md bg-brand-tint text-brand" aria-hidden="true">
+            <ImagePlus size={24} />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 id="brand-heading" className="hd-3">Make the portal look like {ctx.college.short_name || ctx.college.name}</h2>
+            <p className="mt-0.5 text-ink-2">
+              Add the college logo and a campus photo. The logo shows in the top corner of every portal page, and the photo runs across the top of the home page.
+            </p>
+            <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-1 text-[0.875rem] font-bold">
+              {[
+                ["Logo", ctx.college.logo_url],
+                ["Campus photo", ctx.college.cover_image_url],
+              ].map(([label, done]) => (
+                <li key={label as string} className={`inline-flex items-center gap-1.5 ${done ? "text-ok" : "text-ink-2"}`}>
+                  {done ? <Check size={15} aria-hidden="true" /> : <Circle size={13} aria-hidden="true" />}
+                  {label as string}
+                  <span className="sr-only">{done ? "added" : "not added yet"}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <Link href={p("/admin/profile")} className="btn-primary">Add logo and photo</Link>
+        </section>
+      ) : null}
 
       <StatRow
         stats={[

@@ -65,7 +65,7 @@ export function PortalHeader({
     <header className="text-white" style={{ background: "var(--tenant)" }}>
       <div className="page-width flex min-h-16 items-center justify-between gap-4 py-2">
         <Link href={homeHref} className="flex min-w-0 items-center gap-3 rounded-sm">
-          <CollegeMark name={name} shortName={shortName} logoUrl={logoUrl} size={40} onBrand />
+          <CollegeMark name={name} shortName={shortName} logoUrl={logoUrl} size={logoUrl ? 48 : 40} onBrand />
           <span className="min-w-0">
             <span className="block truncate text-[1.0625rem] leading-tight font-extrabold sm:hidden">{shortName || name}</span>
             <span className="hidden truncate text-[1.125rem] leading-tight font-extrabold sm:block">{name}</span>

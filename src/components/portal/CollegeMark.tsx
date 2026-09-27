@@ -2,7 +2,7 @@
 import { initials } from "@/lib/format";
 
 export function CollegeMark({ name, shortName, logoUrl, size = 40, onBrand = false }: { name: string; shortName?: string | null; logoUrl: string | null; size?: number; onBrand?: boolean }) {
-  const label = shortName && shortName.length <= 4 ? shortName.toUpperCase() : initials(name).slice(0, 3);
+  const label = shortName && shortName.length <= 5 ? shortName.toUpperCase() : initials(name).slice(0, 3);
   if (logoUrl) {
     return (
       <img
@@ -10,7 +10,7 @@ export function CollegeMark({ name, shortName, logoUrl, size = 40, onBrand = fal
         alt=""
         width={size}
         height={size}
-        className="shrink-0 rounded-sm bg-white object-contain p-0.5"
+        className="shrink-0 rounded-md bg-white object-contain p-1"
         style={{ width: size, height: size }}
       />
     );

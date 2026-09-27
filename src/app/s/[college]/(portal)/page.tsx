@@ -28,31 +28,29 @@ export default async function PortalHome({ params }: { params: Promise<{ college
 
   return (
     <>
-      <section className="border-b border-line bg-surface">
-        <div className={`page-width grid gap-8 py-8 sm:py-10 ${college.cover_image_url ? "lg:grid-cols-[1fr_1.1fr] lg:items-center" : ""}`}>
-          <div>
+      {college.cover_image_url ? (
+        // Campus photo as a full-width banner, the way college websites open.
+        <section className="relative isolate overflow-hidden border-b border-line bg-ink text-white">
+          <img src={college.cover_image_url} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" width={1600} height={600} />
+          <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/55 to-black/25" aria-hidden="true" />
+          <div className="page-width py-10 sm:py-16 lg:py-20">
+            {college.logo_url ? (
+              <img src={college.logo_url} alt="" width={72} height={72} className="mb-5 size-16 rounded-md bg-white object-contain p-1.5 shadow-sm sm:size-[72px]" />
+            ) : null}
+            <h1 className="hd-1 max-w-[22ch] text-white">{college.welcome_heading || `Welcome to ${college.name}`}</h1>
+            {college.welcome_text ? <p className="mt-3 max-w-[56ch] text-[1.0625rem] leading-relaxed text-white/90">{college.welcome_text}</p> : null}
+            <HomeSearch action={p("/announcements")} />
+          </div>
+        </section>
+      ) : (
+        <section className="border-b border-line bg-surface">
+          <div className="page-width py-8 sm:py-10">
             <h1 className="hd-1 max-w-[22ch]">{college.welcome_heading || `Welcome to ${college.name}`}</h1>
             {college.welcome_text ? <p className="lede mt-3 max-w-[56ch]">{college.welcome_text}</p> : null}
-            <form action={p("/announcements")} method="get" role="search" className="mt-6 flex max-w-lg gap-2">
-              <label className="sr-only" htmlFor="home-search">Search announcements</label>
-              <div className="relative flex-1">
-                <Search size={18} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" aria-hidden="true" />
-                <input id="home-search" name="q" type="search" placeholder="Search announcements..." className="input min-h-11 pl-10" />
-              </div>
-              <button type="submit" className="btn-tenant min-h-11">Search</button>
-            </form>
+            <HomeSearch action={p("/announcements")} />
           </div>
-          {college.cover_image_url ? (
-            <img
-              src={college.cover_image_url}
-              alt={`${college.name} campus`}
-              className="aspect-[16/9] w-full rounded-lg border border-line object-cover"
-              width={960}
-              height={540}
-            />
-          ) : null}
-        </div>
-      </section>
+        </section>
+      )}
 
       <div className="page-width space-y-10 py-8 sm:py-10">
         {urgent.length ? (
@@ -197,5 +195,18 @@ function ContactLine({ label, children }: { label: string; children: React.React
       <dt className="font-bold text-ink-3">{label}</dt>
       <dd>{children}</dd>
     </div>
+  );
+}
+
+function HomeSearch({ action }: { action: string }) {
+  return (
+    <form action={action} method="get" role="search" className="mt-6 flex max-w-lg gap-2">
+      <label className="sr-only" htmlFor="home-search">Search announcements</label>
+      <div className="relative flex-1">
+        <Search size={18} className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-ink-3" aria-hidden="true" />
+        <input id="home-search" name="q" type="search" placeholder="Search announcements..." className="input min-h-11 pl-10" />
+      </div>
+      <button type="submit" className="btn-tenant min-h-11">Search</button>
+    </form>
   );
 }

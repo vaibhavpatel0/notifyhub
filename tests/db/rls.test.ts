@@ -182,16 +182,27 @@ describe("public visitors (anon)", () => {
     });
   });
 
-  it("can find live colleges by name, short name or place, but not hidden ones", async () => {
+  it("can find live colleges by name, short form or place, but not hidden ones", async () => {
     const find = async (q: string) => (await as("anon", (c) => c.query("select slug from search_colleges($1)", [q]))).rows.map((r) => r.slug);
     expect(await find("vignan")).toContain("vits");
-    expect(await find("VITS")).toContain("vits");
+    expect(await find("VITS")).toEqual(["vits"]); // exact short name
+    expect(await find("vit")).toContain("vits"); // initials of Vignan Institute of Technology
+    expect(await find("v.i.t")).toContain("vits"); // dots ignored
+    expect(await find("viot")).toContain("vits"); // initials including "of"
     expect(await find("vignan hyderabad")).toContain("vits"); // words may match different fields
     expect(await find("vignan chennai")).not.toContain("vits");
-    expect(await find("v")).toEqual([]); // too short
-    const suspended = (await db.query("select slug from colleges where id = $1", [COLLEGE_SUSPENDED])).rows[0]?.slug;
-    if (suspended) expect(await find(suspended)).not.toContain(suspended);
-    expect(await find("100%_\\")).toEqual([]); // wildcards are literal
+    expect(await find("100%_\\\\")).toEqual([]); // wildcards are literal
+    const all = await find("");
+    expect(all).toEqual(expect.arrayContaining(["vits", "other"])); // empty query lists every live college
+    expect(all).not.toContain("suspended");
+    expect(await find("suspended")).toEqual([]);
+  });
+
+  it("builds short forms from college names", async () => {
+    const { rows } = await db.query(
+      "select public.college_initials('VP College of Engineering and Technology', false) a, public.college_initials('VP College of Engineering and Technology', true) b, public.college_initials('Indian Institute of Information Technology (IIIT) Hyderabad', false) c",
+    );
+    expect(rows[0]).toEqual({ a: "vpcet", b: "vpcoeat", c: "iiitiiith" });
   });
 
   it("can filter announcements by student year", async () => {
