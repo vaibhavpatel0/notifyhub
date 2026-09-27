@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { portalHost, portalUrl } from "@/lib/tenant";
+import { platformUrl, portalHost, portalUrl } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/types";
 import { STORAGE_BUCKET } from "@/lib/constants";
 import { EMAIL_RE, emailMatchesDomain, isFreeMail, normaliseWebsiteUrl, registrableDomain } from "@/lib/onboarding/domain";
@@ -11,7 +11,7 @@ import { getOnboarding, startSession, type OnboardingRecord } from "@/lib/onboar
 import { isAllowedSlug, slugCandidates, slugify } from "@/lib/onboarding/slug";
 import { checkDnsVerification, checkMetaVerification, DNS_RECORD_HOST, DNS_RECORD_VALUE, META_TAG } from "@/lib/onboarding/verify";
 import { generateOtp, hashOtp, OTP_MAX_ATTEMPTS, OTP_RESEND_SECONDS, OTP_TTL_MINUTES, otpMatches } from "@/lib/otp";
-import { otpEmail as buildOtpEmail, sendEmail } from "@/lib/email";
+import { EmailNotConfiguredError, otpEmail as buildOtpEmail, sendEmail } from "@/lib/email";
 import { safeFetchBytes } from "@/lib/onboarding/safe-fetch";
 import type { WizardState } from "@/lib/onboarding/state";
 
@@ -248,6 +248,9 @@ export async function sendVerificationCode(emailInput: string): Promise<ActionRe
     return { ok: true, data: { devLogged: Boolean(sent.devLogged), state: state.data }, message: `We sent a 6-digit code to ${email}.` };
   } catch (err) {
     console.error("sendVerificationCode", err);
+    if (err instanceof EmailNotConfiguredError) {
+      return { ok: false, error: "Email codes are not available yet. Verify with the DNS record, the website tag or manual review instead." };
+    }
     return { ok: false, error: "We could not send the code. Check the address, or try another verification method." };
   }
 }
@@ -457,7 +460,7 @@ export async function createCollegeAccount(_prev: unknown, formData: FormData): 
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
-      options: { data: { name }, emailRedirectTo: portalUrl(r.college.slug, "/admin") },
+      options: { data: { name }, emailRedirectTo: platformUrl(`/auth/callback?next=${encodeURIComponent(portalUrl(r.college.slug, "/admin"))}`) },
     });
     if (error && !/already.*registered|exists/i.test(error.message)) {
       return { ok: false, error: error.message.includes("password") ? error.message : GENERIC_ERROR };

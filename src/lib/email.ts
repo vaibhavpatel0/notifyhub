@@ -11,11 +11,13 @@ export interface OutgoingEmail {
   html?: string;
 }
 
+export class EmailNotConfiguredError extends Error {}
+
 export async function sendEmail(msg: OutgoingEmail): Promise<{ delivered: boolean; devLogged?: boolean }> {
   const key = process.env.RESEND_API_KEY;
   if (!key) {
     if (process.env.NODE_ENV === "production") {
-      throw new Error("Email is not configured (RESEND_API_KEY missing)");
+      throw new EmailNotConfiguredError("Email is not configured (RESEND_API_KEY missing)");
     }
     console.info(`\n[NotifyHub dev email] to=${msg.to}\nsubject: ${msg.subject}\n${msg.text}\n`);
     return { delivered: false, devLogged: true };

@@ -6,7 +6,8 @@ export const OTP_MAX_ATTEMPTS = 5;
 export const OTP_RESEND_SECONDS = 60;
 
 function secret() {
-  const s = process.env.OTP_SECRET;
+  // Falls back to the integration-provided JWT secret, which is server-only as well.
+  const s = process.env.OTP_SECRET || process.env.SUPABASE_JWT_SECRET;
   if (!s || s.length < 16) throw new Error("OTP_SECRET must be set (16+ characters)");
   return s;
 }

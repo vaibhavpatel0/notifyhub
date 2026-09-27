@@ -377,7 +377,7 @@ export async function inviteAdmin(_prev: unknown, fd: FormData): Promise<ActionR
   if (!userId) {
     const { data, error } = await service.auth.admin.inviteUserByEmail(v.email, {
       data: { name: v.name },
-      redirectTo: platformUrl("/reset-password"),
+      redirectTo: platformUrl("/auth/confirm?next=/reset-password"),
     });
     if (error || !data.user) {
       console.error("inviteUserByEmail", error);
