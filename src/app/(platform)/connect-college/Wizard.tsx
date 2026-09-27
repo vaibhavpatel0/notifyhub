@@ -1,8 +1,9 @@
 "use client";
 
-import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import { ArrowLeft, Check, CircleAlert, X } from "lucide-react";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { useFormAction } from "@/lib/use-form-action";
 import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { Spinner, SubmitButton } from "@/components/ui/SubmitButton";
 import { ROOT_DOMAIN, USE_SUBDOMAINS } from "@/lib/env";
@@ -164,12 +165,12 @@ function ProgressRail({ current }: { current: number }) {
 // ---------------------------------------------------------------------------
 
 function DetailsStep({ onDone }: { onDone: (s: WizardState) => void }) {
-  const [result, action] = useActionState(startOnboarding, null);
+  const [result, formProps, pending] = useFormAction(startOnboarding);
   useEffect(() => {
     if (result?.ok && result.data) onDone(result.data);
   }, [result, onDone]);
   return (
-    <form action={action} className="space-y-5" noValidate>
+    <form {...formProps} className="space-y-5" noValidate>
       <header>
         <h2 className="hd-2">College details</h2>
         <p className="mt-1 text-ink-2">Use the college&apos;s official website, not a social media page.</p>
@@ -206,7 +207,7 @@ function DetailsStep({ onDone }: { onDone: (s: WizardState) => void }) {
         </label>
       </div>
       <div className="flex flex-wrap items-center gap-3 border-t border-line pt-5">
-        <SubmitButton pendingLabel="Starting">Analyse website</SubmitButton>
+        <SubmitButton pending={pending} pendingLabel="Starting">Analyse website</SubmitButton>
         <p className="text-[0.8125rem] text-ink-3">Nothing is published until your college is verified.</p>
       </div>
     </form>
@@ -837,14 +838,14 @@ function SlugStep({ state, preferred, onDone }: { state: WizardState; preferred:
 // ---------------------------------------------------------------------------
 
 function AccountStep({ state, onDone }: { state: WizardState; onDone: (s: WizardState, m?: string) => void }) {
-  const [result, action] = useActionState(createCollegeAccount, null);
+  const [result, formProps, pending] = useFormAction(createCollegeAccount);
   const [show, setShow] = useState(false);
   useEffect(() => {
     if (result?.ok && result.data) onDone(result.data, result.message);
   }, [result, onDone]);
   const verifiedEmail = state.college.verificationMethod === "email_otp" ? state.verification.email : null;
   return (
-    <form action={action} className="max-w-lg space-y-5" noValidate>
+    <form {...formProps} className="max-w-lg space-y-5" noValidate>
       <header>
         <h2 className="hd-2">Create the college admin account</h2>
         <p className="mt-1 text-ink-2">
@@ -882,7 +883,7 @@ function AccountStep({ state, onDone }: { state: WizardState; onDone: (s: Wizard
         By creating the account you agree to the <a className="link" href="/terms">Terms of service</a> and <a className="link" href="/privacy">Privacy policy</a>.
       </p>
       <div className="border-t border-line pt-5">
-        <SubmitButton pendingLabel="Creating account">Create account</SubmitButton>
+        <SubmitButton pending={pending} pendingLabel="Creating account">Create account</SubmitButton>
       </div>
     </form>
   );

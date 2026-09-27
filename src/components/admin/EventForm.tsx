@@ -1,11 +1,12 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { saveEvent } from "@/lib/actions/admin";
 import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { CampusEvent, DepartmentRef } from "@/lib/types";
 import { FileUpload } from "./FileUpload";
+import { useFormAction } from "@/lib/use-form-action";
 
 export function EventForm({
   slug,
@@ -22,12 +23,12 @@ export function EventForm({
   initial?: CampusEvent;
   initialDates?: { date: string; start: string; endDate: string; end: string };
 }) {
-  const [state, action] = useActionState(saveEvent, null);
+  const [state, formProps, pending] = useFormAction(saveEvent);
   const [scope, setScope] = useState<"college" | "department">(lockedDepartment ? "department" : initial?.scope ?? "college");
   const [multiDay, setMultiDay] = useState(Boolean(initialDates && initialDates.endDate && initialDates.endDate !== initialDates.date));
 
   return (
-    <form action={action} className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]" noValidate>
+    <form {...formProps} className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]" noValidate>
       <input type="hidden" name="college" value={slug} />
       {initial ? <input type="hidden" name="id" value={initial.id} /> : null}
       <div className="panel space-y-5 p-5 sm:p-6">
@@ -133,7 +134,7 @@ export function EventForm({
               <option value="draft">Draft (admins only)</option>
             </select>
           </div>
-          <SubmitButton pendingLabel="Saving" className="btn-primary w-full">{initial ? "Save changes" : "Create event"}</SubmitButton>
+          <SubmitButton pending={pending} pendingLabel="Saving" className="btn-primary w-full">{initial ? "Save changes" : "Create event"}</SubmitButton>
         </fieldset>
       </div>
     </form>

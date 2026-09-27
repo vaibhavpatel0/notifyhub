@@ -1,11 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { updatePassword } from "@/lib/actions/auth";
 import { createClient } from "@/lib/supabase/client";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { useFormAction } from "@/lib/use-form-action";
 
 /**
  * Used for "forgot password" and for invited admins choosing their first password.
@@ -13,7 +14,7 @@ import { SubmitButton } from "@/components/ui/SubmitButton";
  * which only the browser can read, so it is turned into a session here.
  */
 export default function ResetPasswordPage() {
-  const [state, action] = useActionState(updatePassword, null);
+  const [state, formProps, pending] = useFormAction(updatePassword);
   const [linkError, setLinkError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
 
@@ -56,14 +57,14 @@ export default function ResetPasswordPage() {
             <Link href="/login" className="btn-primary">Go to sign in</Link>
           </>
         ) : (
-          <form action={action} className="space-y-4">
+          <form {...formProps} className="space-y-4">
             <FormMessage state={state} />
             <label className="block">
               <span className="field-label">New password</span>
               <input name="password" type="password" autoComplete="new-password" minLength={10} required className="input" />
               <span className="field-hint">At least 10 characters, with a letter and a number.</span>
             </label>
-            <SubmitButton pendingLabel="Saving">Save password</SubmitButton>
+            <SubmitButton pending={pending} pendingLabel="Saving">Save password</SubmitButton>
             {!ready ? <span className="sr-only">Checking your link</span> : null}
           </form>
         )}

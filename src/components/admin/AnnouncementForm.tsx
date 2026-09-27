@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { saveAnnouncement } from "@/lib/actions/admin";
 import { CATEGORIES } from "@/lib/constants";
 import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { Announcement, DepartmentRef } from "@/lib/types";
 import { FileUpload } from "./FileUpload";
+import { useFormAction } from "@/lib/use-form-action";
 
 export function AnnouncementForm({
   slug,
@@ -23,7 +24,7 @@ export function AnnouncementForm({
   initial?: Announcement;
   initialDates?: { publishDate: string; publishTime: string; expiresDate: string; expiresTime: string; isFuture: boolean };
 }) {
-  const [state, action] = useActionState(saveAnnouncement, null);
+  const [state, formProps, pending] = useFormAction(saveAnnouncement);
   const [scope, setScope] = useState<"college" | "department">(lockedDepartment ? "department" : initial?.scope ?? "college");
   const [publish, setPublish] = useState<"now" | "schedule" | "draft">(
     initial?.status === "draft" ? "draft" : initialDates?.isFuture ? "schedule" : "now",
@@ -31,7 +32,7 @@ export function AnnouncementForm({
   const [urgent, setUrgent] = useState(initial?.is_urgent ?? false);
 
   return (
-    <form action={action} className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]" noValidate>
+    <form {...formProps} className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_320px]" noValidate>
       <input type="hidden" name="college" value={slug} />
       {initial ? <input type="hidden" name="id" value={initial.id} /> : null}
       {initial && initial.status === "published" && !initialDates?.isFuture ? <input type="hidden" name="keep_published_at" value="1" /> : null}
@@ -138,7 +139,7 @@ export function AnnouncementForm({
             <span className="field-hint">Expired notices disappear from the portal automatically.</span>
             <FieldError state={state} name="expires_date" />
           </div>
-          <SubmitButton pendingLabel="Saving" className="btn-primary w-full">
+          <SubmitButton pending={pending} pendingLabel="Saving" className="btn-primary w-full">
             {publish === "draft" ? "Save draft" : publish === "schedule" ? "Schedule" : initial ? "Save changes" : "Publish"}
           </SubmitButton>
         </fieldset>

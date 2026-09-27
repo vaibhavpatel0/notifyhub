@@ -1,13 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { useActionState } from "react";
 import { signIn } from "@/lib/actions/auth";
 import { FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { useFormAction } from "@/lib/use-form-action";
 
 export function LoginForm({ next, college, notice, forgotHref }: { next?: string; college?: string; notice?: string | null; forgotHref: string }) {
-  const [state, action] = useActionState(signIn, null);
+  const [state, formProps, pending] = useFormAction(signIn);
   const choices = state?.ok ? state.data?.choices : undefined;
 
   if (choices?.length) {
@@ -27,7 +27,7 @@ export function LoginForm({ next, college, notice, forgotHref }: { next?: string
   }
 
   return (
-    <form action={action} className="space-y-4">
+    <form {...formProps} className="space-y-4">
       {notice ? <p className="rounded-md border border-new/30 bg-new-tint px-3 py-2 text-[0.9375rem] font-bold text-ink">{notice}</p> : null}
       <FormMessage state={state} />
       {next ? <input type="hidden" name="next" value={next} /> : null}
@@ -43,7 +43,7 @@ export function LoginForm({ next, college, notice, forgotHref }: { next?: string
         </span>
         <input name="password" type="password" autoComplete="current-password" required className="input" />
       </label>
-      <SubmitButton pendingLabel="Signing in" className="btn-primary w-full">Sign in</SubmitButton>
+      <SubmitButton pending={pending} pendingLabel="Signing in" className="btn-primary w-full">Sign in</SubmitButton>
     </form>
   );
 }

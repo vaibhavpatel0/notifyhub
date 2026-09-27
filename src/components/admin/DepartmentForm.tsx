@@ -1,22 +1,23 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { saveDepartment } from "@/lib/actions/admin";
 import { slugify } from "@/lib/onboarding/slug";
 import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { Department } from "@/lib/types";
 import { FileUpload } from "./FileUpload";
+import { useFormAction } from "@/lib/use-form-action";
 
 export function DepartmentForm({ slug, collegeId, initial, portalBase }: { slug: string; collegeId: string; initial?: Department; portalBase: string }) {
-  const [state, action] = useActionState(saveDepartment, null);
+  const [state, formProps, pending] = useFormAction(saveDepartment);
   const [code, setCode] = useState(initial?.code ?? "");
   const [path, setPath] = useState(initial?.slug ?? "");
   const [touched, setTouched] = useState(Boolean(initial));
   const effective = touched ? path : slugify(code);
 
   return (
-    <form action={action} className="panel max-w-3xl space-y-5 p-5 sm:p-6" noValidate>
+    <form {...formProps} className="panel max-w-3xl space-y-5 p-5 sm:p-6" noValidate>
       <input type="hidden" name="college" value={slug} />
       {initial ? <input type="hidden" name="id" value={initial.id} /> : null}
       <FormMessage state={state} />
@@ -70,7 +71,7 @@ export function DepartmentForm({ slug, collegeId, initial, portalBase }: { slug:
         </label>
       </div>
       <div className="border-t border-line pt-5">
-        <SubmitButton pendingLabel="Saving">{initial ? "Save department" : "Add department"}</SubmitButton>
+        <SubmitButton pending={pending} pendingLabel="Saving">{initial ? "Save department" : "Add department"}</SubmitButton>
       </div>
     </form>
   );

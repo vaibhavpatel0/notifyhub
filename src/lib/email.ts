@@ -26,9 +26,11 @@ export function emailConfigured() {
 
 function smtpSettings() {
   const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
+  const user = process.env.SMTP_USER?.trim();
+  let pass = process.env.SMTP_PASS;
   if (!host || !user || !pass) return null;
+  // Google shows app passwords in four groups ("abcd efgh ijkl mnop"); the spaces are not part of it.
+  if (/gmail\.com$|googlemail\.com$/i.test(host)) pass = pass.replace(/\s+/g, "");
   const port = Number(process.env.SMTP_PORT || 465);
   return { host, port, secure: port === 465, auth: { user, pass } };
 }

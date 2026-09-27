@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element -- live preview of uploaded images */
 
-import { useActionState, useState } from "react";
+import { useState } from "react";
 import { saveProfile } from "@/lib/actions/admin";
 import { BRAND_COLORS } from "@/lib/constants";
 import { initials } from "@/lib/format";
@@ -9,6 +9,7 @@ import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { College } from "@/lib/types";
 import { FileUpload } from "./FileUpload";
+import { useFormAction } from "@/lib/use-form-action";
 
 const SOCIAL_LABELS = { facebook: "Facebook", instagram: "Instagram", x: "X (Twitter)", linkedin: "LinkedIn", youtube: "YouTube" } as const;
 
@@ -23,7 +24,7 @@ const SECTION_LABELS: [keyof College["homepage_sections"], string][] = [
 ];
 
 export function ProfileForm({ slug, college, portalHost }: { slug: string; college: College; portalHost: string }) {
-  const [state, action] = useActionState(saveProfile, null);
+  const [state, formProps, pending] = useFormAction(saveProfile);
   const [preview, setPreview] = useState({
     name: college.name,
     short: college.short_name ?? "",
@@ -37,7 +38,7 @@ export function ProfileForm({ slug, college, portalHost }: { slug: string; colle
 
   return (
     <form
-      action={action}
+      {...formProps}
       className="grid gap-8 xl:grid-cols-[1fr_380px]"
       noValidate
     >
@@ -141,7 +142,7 @@ export function ProfileForm({ slug, college, portalHost }: { slug: string; colle
           </div>
         </Section>
         <div className="sticky bottom-0 -mx-4 border-t border-line bg-canvas/95 px-4 py-3 backdrop-blur-sm sm:mx-0 sm:rounded-md sm:border sm:px-4">
-          <SubmitButton pendingLabel="Saving">Save and publish changes</SubmitButton>
+          <SubmitButton pending={pending} pendingLabel="Saving">Save and publish changes</SubmitButton>
         </div>
       </div>
 

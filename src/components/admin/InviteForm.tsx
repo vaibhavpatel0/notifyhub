@@ -1,14 +1,15 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { inviteAdmin } from "@/lib/actions/admin";
 import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import { CopyButton } from "@/components/ui/CopyButton";
 import type { DepartmentRef } from "@/lib/types";
+import { useFormAction } from "@/lib/use-form-action";
 
 export function InviteForm({ slug, departments }: { slug: string; departments: DepartmentRef[] }) {
-  const [state, action] = useActionState(inviteAdmin, null);
+  const [state, formProps, pending] = useFormAction(inviteAdmin);
   const [role, setRole] = useState<"department_admin" | "college_admin">("department_admin");
   const form = useRef<HTMLFormElement>(null);
   useEffect(() => {
@@ -16,7 +17,7 @@ export function InviteForm({ slug, departments }: { slug: string; departments: D
   }, [state]);
 
   return (
-    <form ref={form} action={action} className="panel space-y-4 p-5" noValidate>
+    <form ref={form} {...formProps} className="panel space-y-4 p-5" noValidate>
       <input type="hidden" name="college" value={slug} />
       <h2 className="hd-3">Add a team member</h2>
       <FormMessage state={state} />
@@ -61,7 +62,7 @@ export function InviteForm({ slug, departments }: { slug: string; departments: D
           ? "Department admins can publish and edit notices and events for their department only."
           : "College admins can change everything, including the profile, departments and the team."}
       </p>
-      <SubmitButton pendingLabel="Sending invitation">Send invitation</SubmitButton>
+      <SubmitButton pending={pending} pendingLabel="Sending invitation">Send invitation</SubmitButton>
     </form>
   );
 }
