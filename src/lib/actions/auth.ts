@@ -2,8 +2,10 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { createAccountLink, deliverAccountLink } from "@/lib/account-links";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { platformUrl, portalPath, portalUrl } from "@/lib/tenant";
+import { portalPath, portalUrl } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/types";
 
 /** Only same-site relative paths are allowed as post-login destinations (no open redirects). */
@@ -81,8 +83,14 @@ export async function signOut(formData: FormData) {
 export async function requestPasswordReset(_prev: unknown, formData: FormData): Promise<ActionResult> {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   if (!z.string().email().safeParse(email).success) return { ok: false, error: "Enter your email address." };
-  const supabase = await createClient();
-  await supabase.auth.resetPasswordForEmail(email, { redirectTo: platformUrl("/auth/confirm?next=/reset-password") });
+  const { data: userId } = await createAdminClient().rpc("auth_user_id", { p_email: email });
+  if (userId) {
+    const link = await createAccountLink("recovery", email, { next: "/reset-password" });
+    if (link.ok) {
+      const delivered = await deliverAccountLink("recovery", email, link.url);
+      if (delivered !== "sent") console.error("password reset email not delivered:", delivered);
+    }
+  }
   // Same answer whether or not the account exists, so addresses cannot be probed.
   return { ok: true, message: "If an account exists for that address, a reset link is on its way. The link works once and expires in an hour." };
 }

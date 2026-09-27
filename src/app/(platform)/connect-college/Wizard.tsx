@@ -1,7 +1,8 @@
 "use client";
 
 import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { ArrowLeft, Check, CircleAlert, Copy, X } from "lucide-react";
+import { ArrowLeft, Check, CircleAlert, X } from "lucide-react";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { Spinner, SubmitButton } from "@/components/ui/SubmitButton";
 import { ROOT_DOMAIN, USE_SUBDOMAINS } from "@/lib/env";
@@ -447,13 +448,25 @@ function ReviewStep({ state, onDone }: { state: WizardState; onDone: (s: WizardS
 
 type Method = "email" | "dns" | "meta" | "manual";
 
+// Free hosting addresses (yourname.vercel.app and similar) belong to the hosting company,
+// so the college cannot add DNS records to them.
+const HOSTED_SUFFIXES = [
+  "vercel.app", "netlify.app", "github.io", "pages.dev", "web.app", "firebaseapp.com",
+  "onrender.com", "herokuapp.com", "wordpress.com", "blogspot.com", "wixsite.com", "weebly.com", "godaddysites.com",
+];
+function isHostedAddress(domain: string) {
+  const d = domain.toLowerCase();
+  return HOSTED_SUFFIXES.some((suffix) => d.endsWith(`.${suffix}`));
+}
+
 function VerifyStep({ state, onDone, onUpdate }: { state: WizardState; onDone: (s: WizardState, m?: string) => void; onUpdate: (s: WizardState) => void }) {
   const official = state.analysis?.officialEmails ?? [];
-  const [method, setMethod] = useState<Method>("email");
+  const hosted = isHostedAddress(state.college.domain);
+  const [method, setMethod] = useState<Method>(hosted ? "meta" : "email");
   const methods: { key: Method; label: string; hint: string }[] = [
     { key: "email", label: "Official email", hint: official.length ? "Recommended" : `Any @${state.college.domain} address` },
-    { key: "dns", label: "DNS record", hint: "For your IT team" },
-    { key: "meta", label: "Website tag", hint: "Edit the home page" },
+    { key: "dns", label: "DNS record", hint: hosted ? "Not possible for this address" : "For your IT team" },
+    { key: "meta", label: "Website tag", hint: hosted ? "Recommended" : "Edit the home page" },
     { key: "manual", label: "Manual review", hint: "A person checks" },
   ];
 
@@ -482,7 +495,19 @@ function VerifyStep({ state, onDone, onUpdate }: { state: WizardState; onDone: (
 
       <div className="mt-6" role="tabpanel">
         {method === "email" && <EmailVerification state={state} onDone={onDone} onUpdate={onUpdate} />}
-        {method === "dns" && (
+        {method === "dns" && hosted && (
+          <div className="rounded-md border border-line bg-sunken p-4">
+            <p className="font-bold">DNS records can&apos;t be added to {state.college.domain}</p>
+            <p className="mt-1 text-ink-2">
+              This address belongs to a hosting company, not to the college, so only that company can change its DNS. Use the website tag
+              instead: it proves the same thing by adding one line to the home page.
+            </p>
+            <button type="button" className="btn-primary mt-4" onClick={() => setMethod("meta")}>
+              Use the website tag
+            </button>
+          </div>
+        )}
+        {method === "dns" && !hosted && (
           <TokenVerification
             method="dns"
             onDone={onDone}
@@ -660,24 +685,6 @@ function TokenVerification({ method, intro, rows, onDone }: { method: "dns" | "m
         {pending ? <><Spinner />Checking</> : method === "dns" ? "Check DNS record" : "Check website"}
       </button>
     </div>
-  );
-}
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false);
-  return (
-    <button
-      type="button"
-      className="btn-ghost btn-sm justify-self-start"
-      onClick={async () => {
-        await navigator.clipboard.writeText(value);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      }}
-    >
-      <Copy size={14} aria-hidden="true" />
-      {copied ? "Copied" : "Copy"}
-    </button>
   );
 }
 
@@ -870,6 +877,7 @@ function AccountStep({ state, onDone }: { state: WizardState; onDone: (s: Wizard
         <span className="field-hint">At least 10 characters, with a letter and a number.</span>
         <FieldError state={result} name="password" />
       </label>
+      <HodSection departments={state.departments} result={result} />
       <p className="text-[0.8125rem] text-ink-3">
         By creating the account you agree to the <a className="link" href="/terms">Terms of service</a> and <a className="link" href="/privacy">Privacy policy</a>.
       </p>
@@ -877,6 +885,107 @@ function AccountStep({ state, onDone }: { state: WizardState; onDone: (s: Wizard
         <SubmitButton pendingLabel="Creating account">Create account</SubmitButton>
       </div>
     </form>
+  );
+}
+
+function HodSection({ departments, result }: { departments: WizardState["departments"]; result: ActionResult<WizardState> | null }) {
+  const [mode, setMode] = useState<"no" | "yes">("no");
+  const noDepartments = departments.length === 0;
+  const options = [
+    { value: "no" as const, title: "No, college admins post for every department", hint: "You can add HODs later under Admin, Team." },
+    { value: "yes" as const, title: "Yes, give each HOD their own login", hint: "Each HOD can post only for their own department." },
+  ];
+  return (
+    <section aria-labelledby="hod-heading" className="space-y-3 border-t border-line pt-5">
+      <h3 id="hod-heading" className="hd-3">Department heads</h3>
+      <p className="text-ink-2">Should each head of department (HOD) post notices and events for their own department?</p>
+      <div role="radiogroup" aria-labelledby="hod-heading" className="grid gap-2">
+        {options.map((o) => (
+          <label
+            key={o.value}
+            className={`flex items-start gap-3 rounded-md border border-line px-3 py-2.5 has-[:checked]:border-brand has-[:checked]:bg-brand-tint ${o.value === "yes" && noDepartments ? "opacity-60" : "cursor-pointer"}`}
+          >
+            <input
+              type="radio"
+              name="hods"
+              value={o.value}
+              checked={mode === o.value}
+              onChange={() => setMode(o.value)}
+              disabled={o.value === "yes" && noDepartments}
+              className="mt-1 accent-brand"
+            />
+            <span>
+              <span className="block font-bold">{o.title}</span>
+              <span className="block text-[0.875rem] text-ink-2">
+                {o.value === "yes" && noDepartments ? "No departments were added in the review step. Add them from the admin dashboard, then invite HODs under Team." : o.hint}
+              </span>
+            </span>
+          </label>
+        ))}
+      </div>
+      {mode === "yes" && !noDepartments ? (
+        <div className="space-y-3">
+          <p className="field-hint">Leave a department empty to skip it. Each HOD gets an email to choose their own password.</p>
+          {departments.map((d, i) => (
+            <div key={`${d.code}-${i}`} className="rounded-md border border-line p-3">
+              <p className="font-bold">
+                {d.name} <span className="font-normal text-ink-3">({d.code})</span>
+              </p>
+              <div className="mt-2 grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="field-label">HOD name</span>
+                  <input name={`hod_${i}_name`} className="input" autoComplete="off" maxLength={120} />
+                  <FieldError state={result} name={`hod_${i}_name`} />
+                </label>
+                <label className="block">
+                  <span className="field-label">HOD email</span>
+                  <input name={`hod_${i}_email`} type="email" className="input" autoComplete="off" />
+                  <FieldError state={result} name={`hod_${i}_email`} />
+                </label>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function HodInviteResults({ invites }: { invites: NonNullable<WizardState["hodInvites"]> }) {
+  const needsSharing = invites.some((i) => i.status === "link");
+  const label: Record<(typeof invites)[number]["status"], string> = {
+    sent: "Invitation email sent",
+    link: "Email not sent: share this link",
+    existing: "Already has a NotifyHub account: can sign in now",
+    failed: "Could not be added: add them again under Team",
+  };
+  return (
+    <section aria-labelledby="hod-results" className="space-y-3">
+      <h3 id="hod-results" className="hd-3">Department heads</h3>
+      {needsSharing ? (
+        <p className="text-ink-2">
+          Some invitation emails could not be sent. Send each HOD their one-time link yourself, for example on WhatsApp. Copy the links now: they are shown only
+          here and expire in 24 hours. You can send new ones later from Admin, Team.
+        </p>
+      ) : null}
+      <ul className="divide-y divide-line rounded-md border border-line">
+        {invites.map((i) => (
+          <li key={i.email} className="space-y-1 px-4 py-3">
+            <p className="font-bold">
+              {i.name} <span className="font-normal text-ink-3">· {i.department}</span>
+            </p>
+            <p className="text-[0.875rem] text-ink-2 break-all">{i.email}</p>
+            <p className={`text-[0.875rem] font-bold ${i.status === "failed" ? "text-urgent" : i.status === "link" ? "text-ink" : "text-ok"}`}>{label[i.status]}</p>
+            {i.link ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <code className="max-w-full truncate rounded bg-sunken px-2 py-1 text-[0.75rem]">{i.link}</code>
+                <CopyButton value={i.link} label="Copy link" className="btn-secondary btn-sm" />
+              </div>
+            ) : null}
+          </li>
+        ))}
+      </ul>
+    </section>
   );
 }
 
@@ -895,6 +1004,7 @@ function DoneStep({ state }: { state: WizardState }) {
         <p className="text-[0.8125rem] font-bold text-ink-3">Portal address</p>
         <p className="mt-1 text-[1.375rem] font-extrabold break-all">{p.host}</p>
       </div>
+      {state.hodInvites?.length ? <HodInviteResults invites={state.hodInvites} /> : null}
       <div className="flex flex-wrap gap-3">
         <a href={p.adminUrl} className="btn-primary">Open admin dashboard</a>
         {p.published ? <a href={p.url} className="btn-secondary">View public portal</a> : null}

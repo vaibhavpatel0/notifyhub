@@ -6,11 +6,11 @@ import { z } from "zod";
 import { requireCollegeAdmin, requireCollegeMember, type AdminContext } from "@/lib/auth";
 import { BRAND_COLORS, STORAGE_BUCKET } from "@/lib/constants";
 import { SUPABASE_URL } from "@/lib/env";
+import { addTeamMember } from "@/lib/account-links";
 import { zonedToIso } from "@/lib/format";
 import { slugify } from "@/lib/onboarding/slug";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { platformUrl, portalPath } from "@/lib/tenant";
+import { portalPath } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/types";
 
 /*
@@ -357,7 +357,7 @@ const inviteSchema = z.object({
   department_id: z.string().uuid().nullable(),
 });
 
-export async function inviteAdmin(_prev: unknown, fd: FormData): Promise<ActionResult> {
+export async function inviteAdmin(_prev: unknown, fd: FormData): Promise<ActionResult<{ link?: string }>> {
   const ctx = await requireCollegeAdmin(str(fd, "college"));
   const parsed = inviteSchema.safeParse({
     name: str(fd, "name"),
@@ -369,44 +369,43 @@ export async function inviteAdmin(_prev: unknown, fd: FormData): Promise<ActionR
   const v = parsed.data;
   if (v.role === "department_admin" && !v.department_id) return { ok: false, error: "Choose their department.", fieldErrors: { department_id: "Choose a department" } };
 
-  // The service role is needed only to create or look up the auth account.
-  const service = createAdminClient();
-  const { data: existingId } = await service.rpc("auth_user_id", { p_email: v.email });
-  let userId = existingId as string | null;
-  let invited = false;
-  if (!userId) {
-    const { data, error } = await service.auth.admin.inviteUserByEmail(v.email, {
-      data: { name: v.name },
-      redirectTo: platformUrl("/auth/confirm?next=/reset-password"),
-    });
-    if (error || !data.user) {
-      console.error("inviteUserByEmail", error);
-      return { ok: false, error: "The invitation email could not be sent. Check the address and try again." };
-    }
-    userId = data.user.id;
-    invited = true;
-  }
-
   // The membership itself is written with the admin's own session, so RLS applies.
   const supabase = await createClient();
-  const { error } = await supabase.from("admins").insert({
-    college_id: ctx.college.id,
-    user_id: userId,
-    name: v.name,
+  const outcome = await addTeamMember({
     email: v.email,
-    role: v.role,
-    department_id: v.role === "department_admin" ? v.department_id : null,
+    name: v.name,
+    collegeName: ctx.college.name,
+    roleLabel: v.role === "college_admin" ? "a college admin" : "a department admin",
+    insertMembership: async (userId) => {
+      const { error } = await supabase.from("admins").insert({
+        college_id: ctx.college.id,
+        user_id: userId,
+        name: v.name,
+        email: v.email,
+        role: v.role,
+        department_id: v.role === "department_admin" ? v.department_id : null,
+      });
+      if (error && error.code !== "23505") console.error("admins insert", error);
+      return error?.code ?? null;
+    },
   });
-  if (error) {
-    return error.code === "23505" ? { ok: false, error: "That person is already on your team." } : { ok: false, error: dbError(error) };
-  }
   revalidatePath(portalPath(ctx.college.slug!, "/admin/admins"));
-  return {
-    ok: true,
-    message: invited
-      ? `Invitation sent to ${v.email}. They choose a password from the email, then sign in.`
-      : `${v.name} already has a NotifyHub account and can sign in now.`,
-  };
+  switch (outcome.status) {
+    case "duplicate":
+      return { ok: false, error: "That person is already on your team." };
+    case "failed":
+      return { ok: false, error: outcome.error };
+    case "existing":
+      return { ok: true, message: `${v.name} already has a NotifyHub account and can sign in now.` };
+    case "sent":
+      return { ok: true, message: `Invitation sent to ${v.email}. They choose a password from the email, then sign in.` };
+    case "link":
+      return {
+        ok: true,
+        data: { link: outcome.link },
+        message: `${v.name} is added, but the invitation email could not be sent. Send them this one-time link yourself (for example on WhatsApp). It expires in 24 hours.`,
+      };
+  }
 }
 
 export async function updateAdmin(fd: FormData) {

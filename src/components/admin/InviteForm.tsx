@@ -4,6 +4,7 @@ import { useActionState, useEffect, useRef, useState } from "react";
 import { inviteAdmin } from "@/lib/actions/admin";
 import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
+import { CopyButton } from "@/components/ui/CopyButton";
 import type { DepartmentRef } from "@/lib/types";
 
 export function InviteForm({ slug, departments }: { slug: string; departments: DepartmentRef[] }) {
@@ -19,6 +20,13 @@ export function InviteForm({ slug, departments }: { slug: string; departments: D
       <input type="hidden" name="college" value={slug} />
       <h2 className="hd-3">Add a team member</h2>
       <FormMessage state={state} />
+      {state?.ok && state.data?.link ? (
+        <div className="rounded-md border border-line bg-sunken p-3">
+          <p className="text-[0.8125rem] font-bold text-ink-3">One-time invitation link</p>
+          <p className="mt-1 font-mono text-[0.8125rem] break-all">{state.data.link}</p>
+          <CopyButton value={state.data.link} label="Copy link" className="btn-secondary btn-sm mt-2" />
+        </div>
+      ) : null}
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="block">
           <span className="field-label">Name</span>

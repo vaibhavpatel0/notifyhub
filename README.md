@@ -27,8 +27,7 @@ cp .env.example .env.local           # fill in the Supabase URL and keys, OTP_SE
 #   supabase/seed.sql                  (optional demo college "vits", clearly marked as sample data)
 # or with the Supabase CLI:  supabase db push && psql "$DATABASE_URL" -f supabase/seed.sql
 
-# Demo sign-in accounts (never hard-coded; you choose the password):
-set -a; source .env.local; set +a
+# Demo sign-in accounts (never hard-coded; you choose the password). Reads .env.local:
 npm run db:demo-users -- --password 'choose-a-long-password'
 
 npm run dev
@@ -47,7 +46,8 @@ Open:
 If subdomains are inconvenient (for example on Vercel preview URLs), set
 `NEXT_PUBLIC_USE_SUBDOMAINS=false` and portals are served at `/s/<slug>` instead.
 
-In development without `RESEND_API_KEY`, verification codes are printed to the server log.
+In development without email settings (`SMTP_*` or `RESEND_API_KEY`), every email NotifyHub would send
+(codes, confirmation links, invitations, resets) is printed to the server log instead.
 
 ## Supabase configuration checklist
 
@@ -56,11 +56,14 @@ In development without `RESEND_API_KEY`, verification codes are printed to the s
    `announcements`, `events` and `notifications` to the `supabase_realtime` publication.
 2. **Auth → URL configuration:** Site URL `https://notifyhub.in`; add redirect URLs
    `https://notifyhub.in/**` and `https://*.notifyhub.in/**`.
-3. **Auth → Email templates** (so links work with server-side sessions):
-   - *Reset password:* `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=recovery&next=/reset-password`
-   - *Invite user:* `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=invite&next=/reset-password`
-   - *Confirm signup:* `{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=signup&next=/login`
-4. **SMTP:** configure a real SMTP provider in Supabase Auth for invites and resets.
+3. **Email:** NotifyHub sends account emails (confirm address, invitations, password
+   resets) itself: Supabase only creates the one-time token (`auth.admin.generateLink`).
+   Set `SMTP_HOST`/`SMTP_USER`/`SMTP_PASS` (a Gmail app password works) or
+   `RESEND_API_KEY` in the app's environment. Supabase's own email templates and SMTP
+   settings are not used, so its hourly email limit does not apply.
+4. **Department heads:** during setup the college chooses whether HODs get their own
+   logins. Each HOD becomes a department admin for their department only. When an email
+   can't be delivered, the one-time link is shown so the admin can share it by hand.
 5. **Staff accounts:** create the user in Supabase Auth, then
    `insert into platform_admins (user_id) values ('<uuid>');`
 6. **Clean-up job (optional, recommended):** enable `pg_cron` and schedule

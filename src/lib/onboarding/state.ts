@@ -39,6 +39,17 @@ export interface WizardState {
   };
   departments: { code: string; name: string }[];
   portal: { url: string; host: string; adminUrl: string; published: boolean } | null;
+  /** Only present right after the account step, when department heads were added. */
+  hodInvites?: HodInvite[];
+}
+
+export interface HodInvite {
+  department: string;
+  name: string;
+  email: string;
+  /** sent: email delivered; link: share the link by hand; existing: can sign in now. */
+  status: "sent" | "link" | "existing" | "failed";
+  link?: string;
 }
 
 export const STAGES = [

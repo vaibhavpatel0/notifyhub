@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-import { platformUrl, portalHost, portalUrl } from "@/lib/tenant";
+import { portalHost, portalUrl } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/types";
 import { STORAGE_BUCKET } from "@/lib/constants";
 import { EMAIL_RE, emailMatchesDomain, isFreeMail, normaliseWebsiteUrl, registrableDomain } from "@/lib/onboarding/domain";
@@ -11,9 +11,10 @@ import { clearSession, getOnboarding, startSession, type OnboardingRecord } from
 import { isAllowedSlug, slugCandidates, slugify } from "@/lib/onboarding/slug";
 import { checkDnsVerification, checkMetaVerification, DNS_RECORD_HOST, DNS_RECORD_VALUE, META_TAG } from "@/lib/onboarding/verify";
 import { generateOtp, hashOtp, OTP_MAX_ATTEMPTS, OTP_RESEND_SECONDS, OTP_TTL_MINUTES, otpMatches } from "@/lib/otp";
-import { EmailNotConfiguredError, otpEmail as buildOtpEmail, sendEmail } from "@/lib/email";
+import { EmailNotConfiguredError, emailConfigured, otpEmail as buildOtpEmail, sendEmail } from "@/lib/email";
 import { safeFetchBytes } from "@/lib/onboarding/safe-fetch";
-import type { WizardState } from "@/lib/onboarding/state";
+import type { HodInvite, WizardState } from "@/lib/onboarding/state";
+import { addTeamMember, clearAbandonedSignup, createAccountLink, deliverAccountLink } from "@/lib/account-links";
 
 const GENERIC_ERROR = "Something went wrong on our side. Your progress is saved; please try again.";
 
@@ -430,10 +431,51 @@ const accountSchema = z.object({
     .regex(/[0-9]/, "Include at least one number"),
 });
 
+const hodSchema = z.object({
+  name: z.string().trim().min(2, "Enter the HOD's name").max(120),
+  email: z.string().trim().toLowerCase().regex(EMAIL_RE, "Enter a valid email address"),
+});
+
+type HodRow = { index: number; name: string; email: string };
+
+/** Reads the optional "department heads" part of the account form. */
+function readHods(formData: FormData, depts: { code: string; name: string }[], adminEmail: string): { hods: HodRow[] } | { error: string; fieldErrors: Record<string, string> } {
+  if (formData.get("hods") !== "yes") return { hods: [] };
+  const hods: HodRow[] = [];
+  const fieldErrors: Record<string, string> = {};
+  const seen = new Set<string>();
+  depts.forEach((_, i) => {
+    const name = String(formData.get(`hod_${i}_name`) ?? "").trim();
+    const email = String(formData.get(`hod_${i}_email`) ?? "").trim().toLowerCase();
+    if (!name && !email) return;
+    const parsed = hodSchema.safeParse({ name, email });
+    if (!parsed.success) {
+      for (const issue of parsed.error.issues) fieldErrors[`hod_${i}_${String(issue.path[0])}`] ??= issue.message;
+      return;
+    }
+    if (parsed.data.email === adminEmail) {
+      fieldErrors[`hod_${i}_email`] = "This is your own email. You already manage every department.";
+      return;
+    }
+    if (seen.has(parsed.data.email)) {
+      fieldErrors[`hod_${i}_email`] = "Each HOD needs their own email address.";
+      return;
+    }
+    seen.add(parsed.data.email);
+    hods.push({ index: i, ...parsed.data });
+  });
+  if (Object.keys(fieldErrors).length) return { error: "Check the department heads you entered.", fieldErrors };
+  if (!hods.length) {
+    return { error: "Enter at least one department head, or choose that college admins post for every department.", fieldErrors: {} };
+  }
+  return { hods };
+}
+
 export async function createCollegeAccount(_prev: unknown, formData: FormData): Promise<ActionResult<WizardState>> {
   const r = await requireOnboarding([6]);
   if ("error" in r) return { ok: false, error: r.error };
-  if (!r.college.slug) return { ok: false, error: "Choose your portal address first." };
+  const slug = r.college.slug;
+  if (!slug) return { ok: false, error: "Choose your portal address first." };
   const parsed = accountSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) {
     const fieldErrors: Record<string, string> = {};
@@ -441,6 +483,10 @@ export async function createCollegeAccount(_prev: unknown, formData: FormData): 
     return { ok: false, error: "Check the highlighted fields.", fieldErrors };
   }
   const { name, email, password } = parsed.data;
+  const depts = r.onboarding.pending_departments ?? [];
+  const hodResult = readHods(formData, depts, email);
+  if ("error" in hodResult) return { ok: false, error: hodResult.error, fieldErrors: hodResult.fieldErrors };
+
   const db = createAdminClient();
   const supabase = await createClient();
 
@@ -457,18 +503,36 @@ export async function createCollegeAccount(_prev: unknown, formData: FormData): 
       return { ok: false, error: GENERIC_ERROR };
     }
   } else {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: { data: { name }, emailRedirectTo: platformUrl(`/auth/callback?next=${encodeURIComponent(portalUrl(r.college.slug, "/admin"))}`) },
-    });
-    if (error && !/already.*registered|exists/i.test(error.message)) {
-      return { ok: false, error: error.message.includes("password") ? error.message : GENERIC_ERROR };
+    if (!emailConfigured() && process.env.NODE_ENV === "production") {
+      return {
+        ok: false,
+        error: "NotifyHub can't send email yet, so we can't confirm this address. Your progress is saved; try again once email is set up, or contact support.",
+      };
     }
-    // Supabase returns a user with no identities for an address that already has an account.
-    if (data?.user && (data.user.identities?.length ?? 0) > 0) {
-      userId = data.user.id;
-      needsEmailConfirmation = !data.session;
+    const prior = await clearAbandonedSignup(email);
+    if (prior.free) {
+      const link = await createAccountLink("signup", email, { password, name, next: portalUrl(slug, "/admin") });
+      if (link.ok) {
+        const delivered = await deliverAccountLink("signup", email, link.url, { collegeName: r.college.name });
+        if (delivered !== "sent") {
+          await db.auth.admin.deleteUser(link.userId);
+          return {
+            ok: false,
+            error: `We couldn't send the confirmation email to ${email}. Check the address and try again.`,
+            fieldErrors: { email: "Confirmation email could not be sent" },
+          };
+        }
+        userId = link.userId;
+        needsEmailConfirmation = true;
+      } else if (link.reason === "failed") {
+        return { ok: false, error: GENERIC_ERROR };
+      }
+    } else if (!prior.confirmedUserId) {
+      return {
+        ok: false,
+        error: "This address has a NotifyHub invitation that hasn't been accepted yet. Open that invitation email first, or use another address.",
+        fieldErrors: { email: "Invitation not accepted yet" },
+      };
     }
   }
 
@@ -497,26 +561,62 @@ export async function createCollegeAccount(_prev: unknown, formData: FormData): 
   }
 
   // 3. Departments picked during review.
-  const depts = r.onboarding.pending_departments ?? [];
+  const deptSlugs: string[] = [];
   if (depts.length) {
     const used = new Set<string>();
     const rows = depts.map((d, i) => {
-      let slug = slugify(d.code) || slugify(d.name);
-      while (used.has(slug)) slug = `${slug}-${i}`;
-      used.add(slug);
-      return { college_id: r.college.id, name: d.name, code: d.code.toUpperCase().slice(0, 12), slug, sort_order: i + 1 };
+      let deptSlug = slugify(d.code) || slugify(d.name);
+      while (used.has(deptSlug)) deptSlug = `${deptSlug}-${i}`;
+      used.add(deptSlug);
+      deptSlugs.push(deptSlug);
+      return { college_id: r.college.id, name: d.name, code: d.code.toUpperCase().slice(0, 12), slug: deptSlug, sort_order: i + 1 };
     });
     const { error } = await db.from("departments").upsert(rows, { onConflict: "college_id,slug", ignoreDuplicates: true });
     if (error) console.error("departments insert", error);
   }
 
-  // 4. Best effort: copy the detected logo into our own storage rather than hot-linking.
+  // 4. Department heads, when the college chose to give them their own access.
+  const hodInvites: HodInvite[] = [];
+  if (hodResult.hods.length) {
+    const { data: deptRows } = await db.from("departments").select("id, slug").eq("college_id", r.college.id);
+    const idBySlug = new Map((deptRows ?? []).map((d) => [d.slug as string, d.id as string]));
+    for (const h of hodResult.hods) {
+      const dept = depts[h.index]!;
+      const departmentId = idBySlug.get(deptSlugs[h.index]!);
+      if (!departmentId) {
+        hodInvites.push({ department: dept.name, name: h.name, email: h.email, status: "failed" });
+        continue;
+      }
+      const outcome = await addTeamMember({
+        email: h.email,
+        name: h.name,
+        collegeName: r.college.name,
+        roleLabel: `head of ${dept.name}`,
+        insertMembership: async (uid) => {
+          const { error } = await db
+            .from("admins")
+            .insert({ college_id: r.college.id, user_id: uid, name: h.name, email: h.email, role: "department_admin", department_id: departmentId });
+          if (error && error.code !== "23505") console.error("hod insert", error);
+          return error?.code ?? null;
+        },
+      });
+      hodInvites.push({
+        department: dept.name,
+        name: h.name,
+        email: h.email,
+        status: outcome.status === "duplicate" ? "existing" : outcome.status,
+        link: outcome.status === "link" ? outcome.link : undefined,
+      });
+    }
+  }
+
+  // 5. Best effort: copy the detected logo into our own storage rather than hot-linking.
   if (r.onboarding.detected_logo) {
     const logoUrl = await importLogo(r.college.id, r.onboarding.detected_logo);
     if (logoUrl) await db.from("colleges").update({ logo_url: logoUrl }).eq("id", r.college.id);
   }
 
-  // 5. Publish, or hold for review.
+  // 6. Publish, or hold for review.
   const requireApproval = await setting("require_manual_approval", false);
   const autoPublish = r.college.verification_status === "verified" && !requireApproval;
   await db
@@ -529,11 +629,13 @@ export async function createCollegeAccount(_prev: unknown, formData: FormData): 
     .eq("id", r.college.id);
   await db.from("college_onboarding").update({ stage: autoPublish ? 8 : 7 }).eq("college_id", r.college.id);
 
-  return stateResult(
+  const result = await stateResult(
     needsEmailConfirmation
-      ? `Account created. Confirm your email from the message we sent to ${email}, then sign in at ${portalHost(r.college.slug)}/login.`
+      ? `Account created. Open the confirmation link we sent to ${email} to sign in. It expires in 24 hours.`
       : undefined,
   );
+  if (result.ok && result.data && hodInvites.length) result.data.hodInvites = hodInvites;
+  return result;
 }
 
 async function importLogo(collegeId: string, url: string): Promise<string | null> {
