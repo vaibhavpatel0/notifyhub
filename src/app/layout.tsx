@@ -5,10 +5,8 @@ import "./globals.css";
 
 // Atkinson Hyperlegible Next (SIL Open Font License), self-hosted: no third-party font requests.
 const atkinson = localFont({
-  src: [
-    { path: "../fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2", weight: "200 800", style: "normal" },
-    { path: "../fonts/atkinson-hyperlegible-next-latin-wght-italic.woff2", weight: "200 800", style: "italic" },
-  ],
+  // Upright only: the interface uses no italics, so the italic file (37 KB) is not downloaded.
+  src: [{ path: "../fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2", weight: "200 800", style: "normal" }],
   variable: "--font-atkinson",
   display: "swap",
 });

@@ -1,12 +1,17 @@
 /* eslint-disable @next/next/no-img-element -- cover photos are user uploads served from storage */
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BellRing, Search } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EventRow } from "@/components/portal/EventRow";
 import { NoticeRow } from "@/components/portal/NoticeRow";
+import { NoticeBoard, type BoardItem } from "@/components/portal/NoticeBoard";
 import { getLiveAnnouncements, getPublicCollege, getPublicDepartments, getPublicEvents } from "@/lib/data";
-import { formatDate, refLabel, requestTime } from "@/lib/format";
+import { dateParts, formatDate, formatTime, refLabel, relativeTime, requestTime } from "@/lib/format";
+import { categoryLabel } from "@/lib/constants";
+import type { Announcement, CampusEvent } from "@/lib/types";
+import { SUPABASE_URL } from "@/lib/env";
 import { portalPath } from "@/lib/tenant";
 
 export default async function PortalHome({ params }: { params: Promise<{ college: string }> }) {
@@ -17,21 +22,33 @@ export default async function PortalHome({ params }: { params: Promise<{ college
   const s = college.homepage_sections;
   const tz = college.timezone;
 
-  const [urgent, latest, pinned, events, departments] = await Promise.all([
+  const [urgent, latest, pinned, events, departments, boardNotices, boardEvents] = await Promise.all([
     s.urgent ? getLiveAnnouncements(college.id, { scope: "college", urgent: true, limit: 5 }) : [],
     s.announcements ? getLiveAnnouncements(college.id, { scope: "college", urgent: false, limit: 6 }) : [],
     s.important ? getLiveAnnouncements(college.id, { pinned: true, limit: 5 }) : [],
     s.events ? getPublicEvents(college.id, { when: "upcoming", limit: 4 }) : [],
     s.departments ? getPublicDepartments(college.id) : [],
+    getLiveAnnouncements(college.id, { limit: 6 }),
+    getPublicEvents(college.id, { when: "upcoming", limit: 3 }),
   ]);
   const now = requestTime();
+  const board = boardItems(boardNotices, boardEvents, { tz, now, p });
 
   return (
     <>
       {college.cover_image_url ? (
         // Campus photo as a full-width banner, the way college websites open.
         <section className="relative isolate overflow-hidden border-b border-line bg-ink text-white">
-          <img src={college.cover_image_url} alt="" className="absolute inset-0 -z-10 h-full w-full object-cover" width={1600} height={600} />
+          {/* Resized and converted to AVIF/WebP for each screen, and fetched first: it is the largest thing on the page. */}
+          <Image
+            src={college.cover_image_url}
+            alt=""
+            fill
+            preload
+            sizes="100vw"
+            unoptimized={!college.cover_image_url.startsWith(`${SUPABASE_URL}/storage/v1/object/public/`)}
+            className="-z-10 object-cover"
+          />
           <div className="absolute inset-0 -z-10 bg-gradient-to-r from-black/75 via-black/55 to-black/25" aria-hidden="true" />
           <div className="page-width py-10 sm:py-16 lg:py-20">
             {college.logo_url ? (
@@ -71,6 +88,21 @@ export default async function PortalHome({ params }: { params: Promise<{ college
                 </li>
               ))}
             </ul>
+          </section>
+        ) : null}
+
+        {board.length >= 2 ? (
+          <section aria-labelledby="board-heading">
+            <div className="mb-3 flex items-end justify-between gap-4">
+              <div>
+                <h2 id="board-heading" className="hd-2">Notice board</h2>
+                <p className="meta mt-0.5">Latest notices and upcoming events. Point at or tap a card to open it.</p>
+              </div>
+              <Link href={p("/announcements")} className="text-[0.9375rem] font-bold whitespace-nowrap hover:underline" style={{ color: "var(--tenant)" }}>
+                All notices
+              </Link>
+            </div>
+            <NoticeBoard items={board} label="Notice board" />
           </section>
         ) : null}
 
@@ -155,7 +187,7 @@ export default async function PortalHome({ params }: { params: Promise<{ college
               <div>
                 <h2 className="hd-2">About {college.short_name || "the college"}</h2>
                 <p className="mt-2 max-w-[68ch] text-ink-2">{college.about.split(/\n\s*\n/)[0]}</p>
-                <Link href={p("/about")} className="link mt-3 inline-block">Read more</Link>
+                <Link href={p("/about")} className="link mt-3 inline-block">Read more<span className="sr-only"> about {college.name}</span></Link>
               </div>
             ) : <div />}
             {s.contact ? (
@@ -209,4 +241,50 @@ function HomeSearch({ action }: { action: string }) {
       <button type="submit" className="btn-tenant min-h-11">Search</button>
     </form>
   );
+}
+
+/** Urgent notices first, then new notices and upcoming events alternately; at most six cards. */
+function boardItems(
+  notices: Announcement[],
+  events: CampusEvent[],
+  { tz, now, p }: { tz: string; now: number; p: (path: string) => string },
+): BoardItem[] {
+  const short = (iso: string) => {
+    const d = dateParts(iso, tz);
+    return `${d.day} ${d.month}`;
+  };
+  const fromNotice = (n: Announcement): BoardItem => ({
+    key: `n-${n.id}`,
+    kind: "notice",
+    title: n.title,
+    href: p(`/announcements/${n.id}`),
+    image: n.image_url,
+    eyebrow: [categoryLabel(n.category), n.department?.code].filter(Boolean).join(" · "),
+    when: `Posted ${relativeTime(n.published_at, now)}`,
+    chip: short(n.published_at),
+    urgent: n.is_urgent,
+  });
+  const fromEvent = (e: CampusEvent): BoardItem => {
+    const d = dateParts(e.starts_at, tz);
+    return {
+      key: `e-${e.id}`,
+      kind: "event",
+      title: e.title,
+      href: p(`/events/${e.id}`),
+      image: e.image_url,
+      eyebrow: ["Event", e.department?.code, e.venue].filter(Boolean).join(" · "),
+      when: `${d.weekday} ${d.day} ${d.month}, ${formatTime(e.starts_at, tz)}`,
+      chip: short(e.starts_at),
+      urgent: false,
+    };
+  };
+  const urgentFirst = notices.filter((n) => n.is_urgent).map(fromNotice);
+  const rest = notices.filter((n) => !n.is_urgent).map(fromNotice);
+  const evs = events.map(fromEvent);
+  const mixed: BoardItem[] = [];
+  for (let i = 0; i < Math.max(rest.length, evs.length); i++) {
+    if (rest[i]) mixed.push(rest[i]!);
+    if (evs[i]) mixed.push(evs[i]!);
+  }
+  return [...urgentFirst, ...mixed].slice(0, 6);
 }

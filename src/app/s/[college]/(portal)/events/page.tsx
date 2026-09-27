@@ -67,9 +67,12 @@ export default async function EventsPage({ params, searchParams }: { params: Pro
 
       <div className="mt-6">
         {events.length ? (
-          <div className="panel divide-y divide-line">
-            {events.map((e) => <EventRow key={e.id} e={e} href={p(`/events/${e.id}`)} tz={college.timezone} />)}
-          </div>
+          <>
+            <h2 className="sr-only">{when === "upcoming" ? "Upcoming events" : "Past events"}</h2>
+            <div className="panel divide-y divide-line">
+              {events.map((e) => <EventRow key={e.id} e={e} href={p(`/events/${e.id}`)} tz={college.timezone} />)}
+            </div>
+          </>
         ) : (
           <EmptyState
             title={when === "upcoming" ? "No upcoming events" : "No past events"}

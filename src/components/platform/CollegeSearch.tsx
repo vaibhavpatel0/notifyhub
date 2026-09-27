@@ -155,7 +155,8 @@ export function CollegeSearch() {
         >
           {results.map((c, i) => (
             <li key={c.url} id={`${listId}-${i}`} role="option" aria-selected={i === active}>
-              <Link
+              {/* A plain link: <Link> would prefetch each portal's code while the start page loads. */}
+              <a
                 href={c.url}
                 tabIndex={-1}
                 onMouseEnter={() => setActive(i)}
@@ -175,7 +176,7 @@ export function CollegeSearch() {
                   <span className="block truncate text-[0.8125rem] text-ink-3">{[c.place, c.host].filter(Boolean).join(" · ")}</span>
                 </span>
                 <ArrowRight size={18} className="shrink-0 text-ink-3" aria-hidden="true" />
-              </Link>
+              </a>
             </li>
           ))}
         </ul>

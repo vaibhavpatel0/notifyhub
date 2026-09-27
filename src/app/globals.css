@@ -12,7 +12,7 @@
 
   --color-ink: #12233a;
   --color-ink-2: #3d4f66;
-  --color-ink-3: #62728a;
+  --color-ink-3: #5a697f;
   --color-canvas: #eceff3;
   --color-surface: #ffffff;
   --color-sunken: #f5f7f9;
@@ -30,7 +30,7 @@
   --color-ok: #1b6e43;
   --color-ok-tint: #e4f2ea;
 
-  --color-new: #9a6700;
+  --color-new: #8f5f00;
   --color-new-tint: #fff4d6;
 
   --radius-xs: 3px;
@@ -150,3 +150,119 @@ textarea.input { min-height: 8rem; line-height: 1.625; }
 .doc strong { color: var(--color-ink); }
 .doc a { color: var(--color-brand); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 .doc code { background: var(--color-sunken); border: 1px solid var(--color-line); border-radius: 3px; padding: 0 0.3em; font-size: 0.92em; word-break: break-all; }
+
+/* ---------------------------------------------------------------------------
+   Notice board (portal home): accordion of notices and events.
+   The open panel widens (flex-grow), shows its caption and full colour; the
+   others narrow, tilt slightly and fade to grey. Phones stack the panels.
+   --------------------------------------------------------------------------- */
+.notice-board {
+  display: flex;
+  gap: 10px;
+  height: 420px;
+  perspective: 1400px;
+}
+.nb-panel {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  transform: rotateY(var(--nb-tilt, 0deg));
+  transition: flex-grow 0.6s cubic-bezier(0.22, 1, 0.36, 1), transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nb-panel[data-active] { flex-grow: var(--nb-grow, 1); }
+.nb-link {
+  position: absolute;
+  inset: 0;
+  display: block;
+  overflow: hidden;
+  border-radius: 14px;
+  color: #fff;
+  background: color-mix(in srgb, var(--tenant) var(--nb-shade, 78%), black);
+  box-shadow: 0 10px 30px -18px rgb(0 0 0 / 0.7);
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.nb-panel[data-urgent] .nb-link { background: color-mix(in srgb, var(--color-urgent) 88%, black); }
+.nb-link:focus-visible { box-shadow: 0 0 0 3px var(--color-surface), 0 0 0 5px var(--tenant); }
+.nb-media {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  filter: grayscale(1) brightness(0.85);
+  transition: filter 0.6s ease;
+}
+.nb-panel[data-active] .nb-media { filter: none; }
+.nb-icon { width: 38%; max-width: 120px; height: auto; opacity: 0.18; }
+.nb-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(180deg, rgb(0 0 0 / 0.35) 0%, transparent 28%, transparent 42%, rgb(0 0 0 / 0.78) 100%),
+    rgb(0 0 0 / 0.25);
+  transition: background-color 0.6s ease;
+}
+.nb-panel[data-active] .nb-scrim { background-color: transparent; }
+.nb-chip {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgb(0 0 0 / 0.45);
+  padding: 2px 7px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+/* Narrow (closed) panels show only the date; the kind appears once a panel opens. */
+.nb-panel:not([data-active]) .nb-chip-kind { display: none; }
+.nb-panel[data-urgent]:not([data-active]) .nb-chip { background: rgb(0 0 0 / 0.55); }
+.nb-caption {
+  position: absolute;
+  inset: auto 20px 20px 20px;
+  display: flex;
+  align-items: stretch;
+  gap: 12px;
+  opacity: 0;
+  transform: translateX(-14px);
+  transition: opacity 0.35s ease, transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.nb-panel[data-active] .nb-caption { opacity: 1; transform: none; transition-delay: 0.08s; }
+.nb-bar { flex: 0 0 3px; border-radius: 3px; background: #fff; }
+.nb-eyebrow { display: block; font-size: 0.8125rem; font-weight: 700; color: rgb(255 255 255 / 0.85); }
+.nb-title {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+  margin-top: 2px;
+  font-size: clamp(1.0625rem, 1.5vw, 1.375rem);
+  font-weight: 800;
+  line-height: 1.25;
+  text-shadow: 0 2px 14px rgb(0 0 0 / 0.5);
+}
+.nb-when { display: block; margin-top: 6px; font-size: 0.8125rem; color: rgb(255 255 255 / 0.85); }
+
+@media (max-width: 640px) {
+  .notice-board { flex-direction: column; height: auto; perspective: none; }
+  .nb-panel { flex: none; height: 76px; transform: none; transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1); }
+  .nb-panel[data-active] { height: 240px; }
+  .nb-chip { top: 10px; }
+  .nb-panel:not([data-active]) .nb-chip-kind { display: inline; }
+  .nb-icon { width: 64px; }
+  /* Collapsed rows still show the title on one line. */
+  .nb-caption { opacity: 1; transform: none; inset: auto 16px 12px 16px; }
+  .nb-panel:not([data-active]) .nb-eyebrow,
+  .nb-panel:not([data-active]) .nb-when,
+  .nb-panel:not([data-active]) .nb-bar { display: none; }
+  .nb-panel:not([data-active]) .nb-title { -webkit-line-clamp: 1; font-size: 1rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nb-panel, .nb-media, .nb-scrim, .nb-caption { transition: none; }
+  .nb-panel { transform: none; }
+}

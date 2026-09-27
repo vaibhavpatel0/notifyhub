@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Share2 } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { whenIdle } from "@/lib/idle";
 
 /** Counts one view per browser session per notice. No personal data is stored. */
 export function ViewRecorder({ id }: { id: string }) {
@@ -17,7 +17,11 @@ export function ViewRecorder({ id }: { id: string }) {
     } catch {
       /* ignore */
     }
-    createClient().rpc("record_announcement_view", { p_id: id }).then(() => undefined);
+    // Counted after the page has loaded, so the Supabase client never delays reading.
+    return whenIdle(async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      await createClient().rpc("record_announcement_view", { p_id: id });
+    });
   }, [id]);
   return null;
 }

@@ -138,17 +138,20 @@ export default async function AnnouncementsPage({ params, searchParams }: { para
           ) : null}
         </p>
         {rows.length ? (
-          <div className="panel divide-y divide-line">
-            {rows.map((r) => (
-              <NoticeRow
-                key={r.id}
-                n={{ ...r, department: r.department_code ? { code: r.department_code, name: r.department_name ?? "" } : null }}
-                href={p(`/announcements/${r.id}`)}
-                tz={college.timezone}
-                now={now}
-              />
-            ))}
-          </div>
+          <>
+            <h2 className="sr-only">Notices</h2>
+            <div className="panel divide-y divide-line">
+              {rows.map((r) => (
+                <NoticeRow
+                  key={r.id}
+                  n={{ ...r, department: r.department_code ? { code: r.department_code, name: r.department_name ?? "" } : null }}
+                  href={p(`/announcements/${r.id}`)}
+                  tz={college.timezone}
+                  now={now}
+                />
+              ))}
+            </div>
+          </>
         ) : !error ? (
           <EmptyState
             title={q ? "No notices match your search" : "No notices in this view"}

@@ -5,13 +5,16 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { BellRing, X } from "lucide-react";
 import type { RealtimePostgresChangesPayload } from "@supabase/supabase-js";
-import { createClient } from "@/lib/supabase/client";
+import { whenIdle } from "@/lib/idle";
 
 /**
  * Subscribes to this college's announcements and events through Supabase
  * Realtime. RLS decides which changes this visitor may receive. On a change
  * the server components re-render (router.refresh), and a new notice is
  * announced in a small banner so students notice it.
+ *
+ * The Supabase client (about 70 KB) is downloaded only after the page has
+ * finished loading, so it never delays the first view of the notices.
  */
 export function LiveUpdates({ collegeId, noticeBase }: { collegeId: string; noticeBase: string }) {
   const router = useRouter();
@@ -19,25 +22,34 @@ export function LiveUpdates({ collegeId, noticeBase }: { collegeId: string; noti
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    const supabase = createClient();
+    let stop: (() => void) | null = null;
+    let cancelled = false;
     const refresh = () => {
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => router.refresh(), 600);
     };
-    const channel = supabase
-      .channel(`college:${collegeId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "announcements", filter: `college_id=eq.${collegeId}` }, (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
-        const row = payload.new as { id?: string; title?: string; is_urgent?: boolean; status?: string; published_at?: string } | null;
-        if (payload.eventType === "INSERT" && row?.id && row.status === "published" && (!row.published_at || new Date(row.published_at) <= new Date())) {
-          setToast({ id: row.id, title: row.title ?? "New notice", urgent: Boolean(row.is_urgent) });
-        }
-        refresh();
-      })
-      .on("postgres_changes", { event: "*", schema: "public", table: "events", filter: `college_id=eq.${collegeId}` }, refresh)
-      .subscribe();
+    const cancelIdle = whenIdle(async () => {
+      const { createClient } = await import("@/lib/supabase/client");
+      if (cancelled) return;
+      const supabase = createClient();
+      const channel = supabase
+        .channel(`college:${collegeId}`)
+        .on("postgres_changes", { event: "*", schema: "public", table: "announcements", filter: `college_id=eq.${collegeId}` }, (payload: RealtimePostgresChangesPayload<Record<string, unknown>>) => {
+          const row = payload.new as { id?: string; title?: string; is_urgent?: boolean; status?: string; published_at?: string } | null;
+          if (payload.eventType === "INSERT" && row?.id && row.status === "published" && (!row.published_at || new Date(row.published_at) <= new Date())) {
+            setToast({ id: row.id, title: row.title ?? "New notice", urgent: Boolean(row.is_urgent) });
+          }
+          refresh();
+        })
+        .on("postgres_changes", { event: "*", schema: "public", table: "events", filter: `college_id=eq.${collegeId}` }, refresh)
+        .subscribe();
+      stop = () => supabase.removeChannel(channel);
+    });
     return () => {
+      cancelled = true;
+      cancelIdle();
       if (timer.current) clearTimeout(timer.current);
-      supabase.removeChannel(channel);
+      stop?.();
     };
   }, [collegeId, router]);
 

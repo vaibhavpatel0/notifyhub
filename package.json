@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run tests/unit",
     "test:db": "vitest run tests/db",
-    "db:demo-users": "tsx --env-file=.env.local scripts/create-demo-users.ts"
+    "db:demo-users": "tsx --env-file=.env.local scripts/create-demo-users.ts",
+    "lighthouse": "npx --yes @lhci/cli@0.15.1 autorun --collect.startServerCommand=\"npm run start\" --collect.url=http://localhost:3000/ --collect.url=http://localhost:3000/connect-college --collect.url=http://localhost:3000/s/vits --collect.url=http://localhost:3000/s/vits/announcements --upload.target=filesystem --upload.outputDir=.lighthouseci/reports"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.7",

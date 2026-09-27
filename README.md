@@ -115,3 +115,20 @@ saying the content is sample data, search engines are told not to index it, and 
 shows a "verified college" badge. Because a real institution with a similar name exists,
 consider renaming the demo (for example "Demo Institute of Technology") before the demo
 portal is public.
+
+## Page speed (Lighthouse)
+
+- **Every production deploy:** `.github/workflows/lighthouse.yml` audits the live site
+  (home, connect page, one college portal, its announcements and events) three times
+  on a simulated mid-range phone after Vercel reports a successful production deployment.
+  Budgets live in `lighthouserc.json`: accessibility and layout shift fail the check;
+  performance, SEO and best practices warn. The job summary links each full report.
+  Set the repository variables `LHCI_BASE_URL` and `LHCI_COLLEGE` to change what is audited.
+  It can also be started by hand from the Actions tab ("Lighthouse", "Run workflow").
+- **Locally:** `npm run build && npm run lighthouse` (needs Chrome; reports go to
+  `.lighthouseci/reports`).
+
+What keeps the pages fast: the Supabase client loads only after the page has finished
+drawing (live updates, view counts), college photos are resized and served as AVIF/WebP
+through Next.js image optimisation, only one font file is downloaded, and the home page
+does not prefetch portal code.
