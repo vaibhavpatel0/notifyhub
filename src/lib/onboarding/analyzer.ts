@@ -92,7 +92,10 @@ export async function analyzeWebsite(websiteUrl: string, emit: (e: AnalysisEvent
   const infos: ExtractedInfo[] = [extractFromHtml(home.body, home.url)];
   result.pagesVisited.push(home.url);
 
-  for (const next of pickFollowUpPages(infos[0]!.links, origin)) {
+  const followUps = pickFollowUpPages(infos[0]!.links, origin);
+  // If an inner page was submitted, read the home page too.
+  if (new URL(home.url).pathname !== "/" && !followUps.includes(`${origin}/`)) followUps.unshift(`${origin}/`);
+  for (const next of followUps.slice(0, 6)) {
     if (robots && !isPathAllowed(robots, new URL(next).pathname)) continue;
     try {
       emit({ type: "page", url: next });
@@ -128,7 +131,11 @@ export async function analyzeWebsite(websiteUrl: string, emit: (e: AnalysisEvent
   emit({
     type: "step", key: "email",
     status: result.officialEmails.length ? "ok" : "warn",
-    detail: result.officialEmails[0] ?? (result.emails.length ? "Only addresses outside the college domain were found" : "No public email found"),
+    detail:
+      result.officialEmails[0] ??
+      (result.emails.length
+        ? `Found ${result.emails.slice(0, 2).join(", ")}, which is not on the college's own domain, so it can't receive the verification code. Use the website tag, DNS record or manual review.`
+        : "No public email found"),
   });
   emit({
     type: "step", key: "departments", status: result.departments.length ? "ok" : "warn",

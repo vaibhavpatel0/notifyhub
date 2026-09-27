@@ -12,6 +12,8 @@ describe("domains and emails", () => {
     expect(normaliseWebsiteUrl("http://10.0.0.1")).toBeNull();
     expect(normaliseWebsiteUrl("https://user:pw@site.ac.in")).toBeNull();
     expect(normaliseWebsiteUrl("localhost")).toBeNull();
+    expect(normaliseWebsiteUrl("https://vpcollege.vercel.app/about.html")?.toString()).toBe("https://vpcollege.vercel.app/");
+    expect(normaliseWebsiteUrl("https://site.ac.in/college/index.php?x=1")?.toString()).toBe("https://site.ac.in/college/");
   });
 
   it("finds the registrable domain, including Indian academic suffixes", () => {
@@ -118,6 +120,11 @@ describe("HTML extraction", () => {
     expect(info.emails.some((e) => e.endsWith(".png"))).toBe(false);
     expect(info.phones).toContain("+914012345678");
     expect(info.social.facebook).toBe("https://www.facebook.com/examplecollege");
+  });
+
+  it("finds departments listed in tables", () => {
+    const i = extractFromHtml(`<body><table><tr><td>CSE</td><td>Computer Science and Engineering</td></tr><tr><td>IT</td><td>Information Technology</td></tr></table></body>`, "https://c.ac.in/");
+    expect(i.departments.map((d) => d.code).sort()).toEqual(["CSE", "IT"]);
   });
 
   it("does not glue text across line breaks", () => {

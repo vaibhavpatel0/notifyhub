@@ -19,6 +19,10 @@ export function normaliseWebsiteUrl(input: string): URL | null {
     if (!url.hostname.includes(".")) return null;
     if (/^\d+\.\d+\.\d+\.\d+$/.test(url.hostname) || url.hostname.startsWith("[")) return null; // IP literals
     url.hash = "";
+    url.search = "";
+    // People often paste an inner page ("…/about.html", "…/index.php"). Use the folder it sits in,
+    // which for almost every college site is the home page.
+    if (/\.[a-z0-9]{2,5}$/i.test(url.pathname)) url.pathname = url.pathname.replace(/[^/]*$/, "");
     return url;
   } catch {
     return null;

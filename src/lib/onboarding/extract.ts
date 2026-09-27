@@ -124,7 +124,8 @@ export function extractFromHtml(html: string, pageUrl: string): ExtractedInfo {
     if (t) links.push({ href, text: t.slice(0, 120) });
     matchDepartments(t, deptHits);
   });
-  $("h1, h2, h3, h4, li").each((_, el) => {
+  // Short text blocks where colleges list departments: headings, lists, table cells, labels.
+  $("h1, h2, h3, h4, h5, h6, li, td, th, dt, dd, strong, b, label, option, p").each((_, el) => {
     const t = $(el).text().replace(/\s+/g, " ").trim();
     if (t.length < 90) matchDepartments(t, deptHits);
   });
