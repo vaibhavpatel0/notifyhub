@@ -5,7 +5,7 @@ import { notFound } from "next/navigation";
 import { CalendarPlus, Download, ExternalLink } from "lucide-react";
 import { ShareButton } from "@/components/portal/ClientBits";
 import { Countdown } from "@/components/portal/Countdown";
-import { DeptTag } from "@/components/ui/Badges";
+import { DeptTag, YearTag } from "@/components/ui/Badges";
 import { getPublicCollege, getPublicEvent } from "@/lib/data";
 import { formatDateLong, formatTime } from "@/lib/format";
 import { portalPath } from "@/lib/tenant";
@@ -39,7 +39,12 @@ export default async function EventDetail({ params }: { params: Params }) {
         <div className="panel min-w-0 overflow-hidden">
           {e.image_url ? <img src={e.image_url} alt="" className="aspect-[2/1] w-full border-b border-line object-cover" /> : null}
           <div className="p-5 sm:p-8">
-            {e.department ? <DeptTag code={e.department.code} name={e.department.name} /> : null}
+            {e.department || e.years?.length ? (
+              <div className="flex flex-wrap gap-1.5">
+                {e.department ? <DeptTag code={e.department.code} name={e.department.name} /> : null}
+                <YearTag years={e.years} />
+              </div>
+            ) : null}
             <h1 className="hd-1 mt-2">{e.title}</h1>
             {e.organizer ? <p className="mt-1 text-ink-2">Organised by {e.organizer}</p> : null}
             {e.countdown_enabled ? (

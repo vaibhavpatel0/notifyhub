@@ -15,7 +15,7 @@ export default async function EditAnnouncement({ params }: { params: Promise<{ c
   const supabase = await createClient();
   const [{ data: n }, { data: depts }] = await Promise.all([
     supabase.from("announcements").select("*").eq("id", id).eq("college_id", ctx.college.id).maybeSingle(),
-    supabase.from("departments").select("id, name, code, slug").eq("college_id", ctx.college.id).order("sort_order"),
+    supabase.from("departments").select("id, name, code, slug, years_count").eq("college_id", ctx.college.id).order("sort_order"),
   ]);
   if (!n) notFound();
   const a = n as Announcement;

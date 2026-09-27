@@ -1,13 +1,13 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requestTime } from "@/lib/format";
+import { ordinal, requestTime } from "@/lib/format";
 import { Search } from "lucide-react";
 import { AutoSubmitSelect } from "@/components/portal/FilterControls";
 import { NoticeRow } from "@/components/portal/NoticeRow";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { CATEGORIES, QUICK_FILTERS } from "@/lib/constants";
-import { getPublicCollege, getPublicDepartments } from "@/lib/data";
+import { getPublicCollege, getPublicDepartments, yearParam } from "@/lib/data";
 import { createClient } from "@/lib/supabase/server";
 import { portalPath } from "@/lib/tenant";
 import type { AnnouncementSearchRow } from "@/lib/types";
@@ -15,7 +15,7 @@ import type { AnnouncementSearchRow } from "@/lib/types";
 export const metadata: Metadata = { title: "Announcements" };
 
 const PAGE_SIZE = 15;
-type Search = { q?: string; cat?: string; dept?: string; sort?: string; page?: string };
+type Search = { q?: string; cat?: string; dept?: string; year?: string; sort?: string; page?: string };
 
 export default async function AnnouncementsPage({ params, searchParams }: { params: Promise<{ college: string }>; searchParams: Promise<Search> }) {
   const [{ college: slug }, sp] = await Promise.all([params, searchParams]);
@@ -30,6 +30,8 @@ export default async function AnnouncementsPage({ params, searchParams }: { para
 
   const departments = await getPublicDepartments(college.id);
   const dept = departments.find((d) => d.slug === sp.dept) ?? null;
+  const maxYears = dept?.years_count ?? Math.max(4, ...departments.map((d) => d.years_count ?? 4));
+  const year = yearParam(sp.year, maxYears);
 
   const supabase = await createClient();
   const { data, error } = await supabase.rpc("search_announcements", {
@@ -42,6 +44,7 @@ export default async function AnnouncementsPage({ params, searchParams }: { para
     p_sort: sort,
     p_limit: PAGE_SIZE,
     p_offset: (page - 1) * PAGE_SIZE,
+    p_year: year,
   });
   const rows = (data ?? []) as AnnouncementSearchRow[];
   const total = rows[0]?.total_count ?? 0;
@@ -49,7 +52,7 @@ export default async function AnnouncementsPage({ params, searchParams }: { para
 
   const href = (over: Partial<Search>) => {
     const u = new URLSearchParams();
-    const merged = { q: q || undefined, cat: cat !== "all" ? cat : undefined, dept: dept?.slug, sort: sort !== "latest" ? sort : undefined, ...over };
+    const merged = { q: q || undefined, cat: cat !== "all" ? cat : undefined, dept: dept?.slug, year: year ? String(year) : undefined, sort: sort !== "latest" ? sort : undefined, ...over };
     for (const [k, v] of Object.entries(merged)) if (v) u.set(k, String(v));
     const s = u.toString();
     return p(`/announcements${s ? `?${s}` : ""}`);
@@ -103,6 +106,15 @@ export default async function AnnouncementsPage({ params, searchParams }: { para
               ))}
             </AutoSubmitSelect>
           </label>
+          <label className="min-w-36 flex-1 sm:flex-none">
+            <span className="field-label">Year</span>
+            <AutoSubmitSelect name="year" defaultValue={year ? String(year) : ""} className="input">
+              <option value="">All years</option>
+              {Array.from({ length: maxYears }, (_, i) => i + 1).map((y) => (
+                <option key={y} value={y}>{ordinal(y)} year</option>
+              ))}
+            </AutoSubmitSelect>
+          </label>
           <label className="min-w-40 flex-1 sm:flex-none">
             <span className="field-label">Sort by</span>
             <AutoSubmitSelect name="sort" defaultValue={sort} className="input">
@@ -117,8 +129,8 @@ export default async function AnnouncementsPage({ params, searchParams }: { para
 
       <div className="mt-6" aria-live="polite">
         <p className="meta mb-2">
-          {error ? "Search is unavailable right now. Please try again." : `${total} ${total === 1 ? "notice" : "notices"}${q ? ` matching “${q}”` : ""}`}
-          {q || cat !== "all" || dept || sort !== "latest" ? (
+          {error ? "Search is unavailable right now. Please try again." : `${total} ${total === 1 ? "notice" : "notices"}${year ? ` for ${ordinal(year)} year` : ""}${q ? ` matching “${q}”` : ""}`}
+          {q || cat !== "all" || dept || year || sort !== "latest" ? (
             <>
               {" "}
               <Link href={p("/announcements")} className="font-bold underline underline-offset-2">Clear filters</Link>
@@ -140,7 +152,7 @@ export default async function AnnouncementsPage({ params, searchParams }: { para
         ) : !error ? (
           <EmptyState
             title={q ? "No notices match your search" : "No notices in this view"}
-            body={q ? "Try fewer words, check the spelling, or search across all categories." : "Try another category or department."}
+            body={q ? "Try fewer words, check the spelling, or search across all categories." : "Try another category, department or year."}
             action={{ href: p("/announcements"), label: "Show all announcements" }}
           />
         ) : null}

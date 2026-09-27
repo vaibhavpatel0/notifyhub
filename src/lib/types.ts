@@ -68,6 +68,8 @@ export interface Department {
   show_head: boolean;
   status: "active" | "hidden";
   sort_order: number;
+  /** How many years the department's course runs (4 for B.Tech, 2 for MBA ...). */
+  years_count: number;
   created_at: string;
   updated_at: string;
 }
@@ -77,6 +79,7 @@ export interface DepartmentRef {
   name: string;
   code: string;
   slug: string;
+  years_count?: number;
 }
 
 export interface Announcement {
@@ -98,6 +101,8 @@ export interface Announcement {
   published_at: string;
   expires_at: string | null;
   view_count: number;
+  /** Student years this is for; empty means every year. */
+  years: number[];
   created_by: string | null;
   created_at: string;
   updated_at: string;
@@ -123,6 +128,7 @@ export interface AnnouncementSearchRow {
   is_pinned: boolean;
   published_at: string;
   expires_at: string | null;
+  years: number[];
   total_count: number;
 }
 
@@ -142,6 +148,8 @@ export interface CampusEvent {
   attachment_url: string | null;
   attachment_name: string | null;
   countdown_enabled: boolean;
+  /** Student years this is for; empty means every year. */
+  years: number[];
   status: ContentStatus;
   created_by: string | null;
   created_at: string;

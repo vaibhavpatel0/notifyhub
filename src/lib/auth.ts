@@ -60,7 +60,7 @@ export const requireCollegeMember = cache(async (slug: string): Promise<AdminCon
   const { data: member } = college
     ? await supabase
         .from("admins")
-        .select("*, department:departments(id, name, code, slug)")
+        .select("*, department:departments(id, name, code, slug, years_count)")
         .eq("college_id", college.id)
         .eq("user_id", user.id)
         .eq("status", "active")

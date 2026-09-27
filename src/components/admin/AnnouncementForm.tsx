@@ -7,6 +7,7 @@ import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { Announcement, DepartmentRef } from "@/lib/types";
 import { FileUpload } from "./FileUpload";
+import { YearPicker } from "./YearPicker";
 import { useFormAction } from "@/lib/use-form-action";
 
 export function AnnouncementForm({
@@ -26,6 +27,7 @@ export function AnnouncementForm({
 }) {
   const [state, formProps, pending] = useFormAction(saveAnnouncement);
   const [scope, setScope] = useState<"college" | "department">(lockedDepartment ? "department" : initial?.scope ?? "college");
+  const [departmentId, setDepartmentId] = useState(initial?.department_id ?? "");
   const [publish, setPublish] = useState<"now" | "schedule" | "draft">(
     initial?.status === "draft" ? "draft" : initialDates?.isFuture ? "schedule" : "now",
   );
@@ -85,7 +87,7 @@ export function AnnouncementForm({
               {scope === "department" ? (
                 <label className="mt-3 block">
                   <span className="sr-only">Department</span>
-                  <select name="department_id" className="input" defaultValue={initial?.department_id ?? ""}>
+                  <select name="department_id" className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
                     <option value="">Choose a department</option>
                     {departments.map((d) => <option key={d.id} value={d.id}>{d.code}: {d.name}</option>)}
                   </select>
@@ -94,6 +96,7 @@ export function AnnouncementForm({
               ) : null}
             </div>
           )}
+          <YearPicker departments={departments} scope={scope} departmentId={departmentId} lockedDepartment={lockedDepartment} initial={initial?.years} />
           <label className={`flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2.5 ${urgent ? "border-urgent/50 bg-urgent-tint" : "border-line"}`}>
             <input type="checkbox" name="is_urgent" checked={urgent} onChange={(e) => setUrgent(e.target.checked)} className="mt-1 accent-[#b3261e]" />
             <span>

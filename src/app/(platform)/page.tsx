@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { AddressChecker } from "@/components/platform/AddressChecker";
+import { CollegeSearch } from "@/components/platform/CollegeSearch";
 import { PortalPreview } from "@/components/platform/PortalPreview";
 import { ROOT_DOMAIN as ROOT_DOMAIN_LABEL } from "@/lib/env";
 import { portalUrl } from "@/lib/tenant";
@@ -19,6 +20,7 @@ const FEATURES = [
   ["Department portals", "Each department gets its own page and its own admins, who cannot edit other departments."],
   ["Events with countdowns", "Events show date, venue, organiser and registration link, with a live countdown to the start."],
   ["Search and filters", "Students search by title, text, category or department and sort by latest, oldest or closing soon."],
+  ["Year-wise notices", "Aim a notice or event at 1st, 2nd, 3rd or 4th year, or any mix. Students filter by their own year and still see notices for everyone."],
   ["Circular numbers", "Every notice gets a reference number per year, so staff and students can cite it the way paper circulars are cited."],
   ["Scheduling and expiry", "Notices can go live at a set time and disappear after a deadline, so the board stays current by itself."],
   ["Attachments", "Upload PDFs, Word, Excel or image files up to 10 MB for timetables, forms and circulars."],
@@ -45,7 +47,7 @@ export default function LandingPage() {
               </a>
             </div>
             <div className="mt-10 border-t border-line pt-6">
-              <AddressChecker />
+              <CollegeSearch />
             </div>
           </div>
           <PortalPreview />
@@ -86,16 +88,20 @@ export default function LandingPage() {
               <Term t="Your branding">Logo, cover photo, accent colour, welcome text and the sections shown on your home page.</Term>
               <Term t="Simple analytics">Notices this month, most-read notices and which departments are posting.</Term>
             </dl>
+            <div className="mt-8 border-t border-line pt-6">
+              <AddressChecker />
+            </div>
           </div>
           <div id="for-students">
             <h2 className="hd-1">For students</h2>
             <p className="lede mt-3">
-              Type the college address into the browser. That is the whole setup.
+              Search for your college at the top of this page, or type its address into the browser. That is the whole setup.
             </p>
             <dl className="mt-6 space-y-4">
               <Term t="No sign-up">Public notices, events and department pages are open to read without an account.</Term>
               <Term t="Made for phones">Pages load quickly on mobile data and are readable on small screens.</Term>
               <Term t="Nothing missed">Urgent notices stay at the top, and new notices appear while the page is open.</Term>
+              <Term t="Only your year">Pick your year to see the notices meant for you, along with the ones for everyone.</Term>
               <Term t="Find old notices">Search every live notice by keyword, category or department, and download attachments.</Term>
             </dl>
           </div>

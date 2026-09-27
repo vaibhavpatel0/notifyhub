@@ -4,7 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Download } from "lucide-react";
 import { ShareButton, ViewRecorder } from "@/components/portal/ClientBits";
-import { CategoryTag, DeptTag, UrgentBadge } from "@/components/ui/Badges";
+import { CategoryTag, DeptTag, UrgentBadge, YearTag } from "@/components/ui/Badges";
 import { getPublicAnnouncement, getPublicCollege } from "@/lib/data";
 import { formatDateLong, formatDateTime, refLabel, requestTime } from "@/lib/format";
 import { portalPath } from "@/lib/tenant";
@@ -51,6 +51,7 @@ export default async function AnnouncementDetail({ params }: { params: Params })
             {n.is_urgent ? <UrgentBadge /> : null}
             <CategoryTag value={n.category} />
             {n.department ? <DeptTag code={n.department.code} name={n.department.name} /> : null}
+            <YearTag years={n.years} />
           </div>
           <h1 className="hd-1 mt-3">{n.title}</h1>
           <p className="meta mt-2">

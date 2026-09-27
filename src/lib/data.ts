@@ -5,6 +5,18 @@ import type { Announcement, CampusEvent, College, Department } from "@/lib/types
 
 const DEPT_REF = "department:departments(id, name, code, slug)";
 
+/** For a student in `year`: posts for every year (empty list) plus posts that include their year. */
+function yearFilter(year: number) {
+  const y = Math.trunc(year);
+  return `years.eq.{},years.cs.{${y}}`;
+}
+
+/** Reads ?year= against the longest course that applies; null when absent or out of range. */
+export function yearParam(raw: string | undefined, maxYears: number) {
+  const n = Number(raw);
+  return Number.isInteger(n) && n >= 1 && n <= maxYears ? n : null;
+}
+
 /** Active college for the public portal. RLS only returns colleges with status = active. */
 export const getPublicCollege = cache(async (slug: string) => {
   const supabase = await createClient();
@@ -33,7 +45,7 @@ export const getPublicDepartments = cache(async (collegeId: string) => {
 /** Live announcements. Visibility (published, not expired, not scheduled) is enforced by RLS and repeated here for admins. */
 export async function getLiveAnnouncements(
   collegeId: string,
-  opts: { scope?: "college" | "department"; departmentId?: string; urgent?: boolean; pinned?: boolean; limit?: number } = {},
+  opts: { scope?: "college" | "department"; departmentId?: string; urgent?: boolean; pinned?: boolean; year?: number | null; limit?: number } = {},
 ) {
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
@@ -51,6 +63,7 @@ export async function getLiveAnnouncements(
   if (opts.departmentId) q = q.eq("department_id", opts.departmentId);
   if (opts.urgent !== undefined) q = q.eq("is_urgent", opts.urgent);
   if (opts.pinned !== undefined) q = q.eq("is_pinned", opts.pinned);
+  if (opts.year) q = q.or(yearFilter(opts.year));
   const { data } = await q;
   return (data ?? []) as Announcement[];
 }
@@ -72,7 +85,7 @@ export async function getPublicAnnouncement(collegeId: string, id: string) {
 
 export async function getPublicEvents(
   collegeId: string,
-  opts: { when?: "upcoming" | "past"; departmentId?: string; scope?: "college" | "department"; limit?: number } = {},
+  opts: { when?: "upcoming" | "past"; departmentId?: string; scope?: "college" | "department"; year?: number | null; limit?: number } = {},
 ) {
   const supabase = await createClient();
   const nowIso = new Date().toISOString();
@@ -87,6 +100,7 @@ export async function getPublicEvents(
   }
   if (opts.departmentId) q = q.eq("department_id", opts.departmentId);
   if (opts.scope) q = q.eq("scope", opts.scope);
+  if (opts.year) q = q.or(yearFilter(opts.year));
   const { data } = await q.limit(opts.limit ?? 20);
   return (data ?? []) as CampusEvent[];
 }

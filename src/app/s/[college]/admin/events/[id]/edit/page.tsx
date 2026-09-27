@@ -15,7 +15,7 @@ export default async function EditEvent({ params }: { params: Promise<{ college:
   const supabase = await createClient();
   const [{ data: ev }, { data: depts }] = await Promise.all([
     supabase.from("events").select("*").eq("id", id).eq("college_id", ctx.college.id).maybeSingle(),
-    supabase.from("departments").select("id, name, code, slug").eq("college_id", ctx.college.id).order("sort_order"),
+    supabase.from("departments").select("id, name, code, slug, years_count").eq("college_id", ctx.college.id).order("sort_order"),
   ]);
   if (!ev) notFound();
   const e = ev as CampusEvent;

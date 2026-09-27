@@ -7,7 +7,7 @@ import { requireCollegeAdmin, requireCollegeMember, type AdminContext } from "@/
 import { BRAND_COLORS, STORAGE_BUCKET } from "@/lib/constants";
 import { SUPABASE_URL } from "@/lib/env";
 import { addTeamMember } from "@/lib/account-links";
-import { zonedToIso } from "@/lib/format";
+import { parseYears, zonedToIso } from "@/lib/format";
 import { slugify } from "@/lib/onboarding/slug";
 import { createClient } from "@/lib/supabase/server";
 import { portalPath } from "@/lib/tenant";
@@ -54,6 +54,20 @@ async function ctxFrom(fd: FormData): Promise<AdminContext> {
 // ---------------------------------------------------------------------------
 // Announcements
 // ---------------------------------------------------------------------------
+
+/**
+ * Which student years a notice or event is for. The upper bound is the chosen
+ * department's course length, or the longest course in the college for
+ * college-wide posts. Ticking every year is stored as "all years" (empty).
+ */
+async function yearsFor(fd: FormData, collegeId: string, departmentId: string | null): Promise<number[]> {
+  const supabase = await createClient();
+  let q = supabase.from("departments").select("years_count").eq("college_id", collegeId);
+  if (departmentId) q = q.eq("id", departmentId);
+  const { data } = await q;
+  const limit = Math.max(1, ...(data ?? []).map((d) => (d.years_count as number) ?? 4), data?.length ? 1 : 4);
+  return parseYears(fd.getAll("years"), limit);
+}
 
 const announcementSchema = z.object({
   title: z.string().trim().min(3, "Title must be at least 3 characters").max(200),
@@ -114,6 +128,7 @@ export async function saveAnnouncement(_prev: unknown, fd: FormData): Promise<Ac
     category: v.category,
     scope: v.scope,
     department_id: v.scope === "department" ? v.department_id : null,
+    years: await yearsFor(fd, ctx.college.id, v.scope === "department" ? v.department_id : null),
     is_urgent: v.is_urgent,
     is_pinned: v.is_pinned,
     status: v.publish === "draft" ? "draft" : "published",
@@ -202,6 +217,7 @@ export async function saveEvent(_prev: unknown, fd: FormData): Promise<ActionRes
     description: v.description,
     scope: v.scope,
     department_id: v.scope === "department" ? v.department_id : null,
+    years: await yearsFor(fd, ctx.college.id, v.scope === "department" ? v.department_id : null),
     starts_at: startsAt,
     ends_at: endsAt,
     venue: v.venue || null,
@@ -243,6 +259,7 @@ const departmentSchema = z.object({
   show_head: z.boolean(),
   status: z.enum(["active", "hidden"]),
   sort_order: z.coerce.number().int().min(0).max(999),
+  years_count: z.coerce.number().int().min(1, "At least 1 year").max(6, "At most 6 years"),
 });
 
 export async function saveDepartment(_prev: unknown, fd: FormData): Promise<ActionResult> {
@@ -257,6 +274,7 @@ export async function saveDepartment(_prev: unknown, fd: FormData): Promise<Acti
     show_head: bool(fd, "show_head"),
     status: str(fd, "status") === "hidden" ? "hidden" : "active",
     sort_order: str(fd, "sort_order") || "0",
+    years_count: str(fd, "years_count") || "4",
   });
   if (!parsed.success) return fieldErrors(parsed.error);
   const imageRaw = str(fd, "image_url");

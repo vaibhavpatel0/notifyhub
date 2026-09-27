@@ -8,7 +8,7 @@
  *
  *   TEST_DATABASE_URL=postgres://postgres@127.0.0.1:54329/postgres npm run test:db
  */
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -77,7 +77,9 @@ beforeAll(async () => {
     (_m, r, b) => `do $$ begin create role ${r} nologin${b ?? ""}; exception when duplicate_object then null; end $$;`,
   );
   await db.query(shim);
-  await db.query(sql("supabase/migrations/20260927000001_init.sql"));
+  for (const file of readdirSync(join(root, "supabase/migrations")).filter((f) => f.endsWith(".sql")).sort()) {
+    await db.query(sql(`supabase/migrations/${file}`));
+  }
   await db.query(sql("supabase/seed.sql"));
 
   await db.query(
@@ -169,6 +171,40 @@ describe("public visitors (anon)", () => {
       c.query("select bool_and(is_urgent) as all_urgent, count(*)::int as n from search_announcements($1, p_urgent => true)", [COLLEGE_A]),
     );
     expect(urgent.rows[0]).toEqual({ all_urgent: true, n: 2 });
+  });
+
+  it("college admins can edit a department and a team member (tables without created_by)", async () => {
+    await as("adminA", async (c) => {
+      const d = await c.query("update departments set years_count = 2, description = 'Edited' where id = $1 returning years_count", [CSE]);
+      expect(d.rows[0].years_count).toBe(2);
+      const a = await c.query("update admins set name = 'Renamed' where college_id = $1 and user_id = $2 returning name", [COLLEGE_A, users.cseAdminA]);
+      expect(a.rows[0].name).toBe("Renamed");
+    });
+  });
+
+  it("can find live colleges by name, short name or place, but not hidden ones", async () => {
+    const find = async (q: string) => (await as("anon", (c) => c.query("select slug from search_colleges($1)", [q]))).rows.map((r) => r.slug);
+    expect(await find("vignan")).toContain("vits");
+    expect(await find("VITS")).toContain("vits");
+    expect(await find("vignan hyderabad")).toContain("vits"); // words may match different fields
+    expect(await find("vignan chennai")).not.toContain("vits");
+    expect(await find("v")).toEqual([]); // too short
+    const suspended = (await db.query("select slug from colleges where id = $1", [COLLEGE_SUSPENDED])).rows[0]?.slug;
+    if (suspended) expect(await find(suspended)).not.toContain(suspended);
+    expect(await find("100%_\\")).toEqual([]); // wildcards are literal
+  });
+
+  it("can filter announcements by student year", async () => {
+    const titles = async (year: number) =>
+      (await as("anon", (c) => c.query("select title from search_announcements($1, p_year => $2::smallint, p_limit => 50)", [COLLEGE_A, year]))).rows.map((r) => r.title);
+    const first = await titles(1);
+    expect(first).toContain("Anti-ragging undertaking: submission deadline"); // 1st year only
+    expect(first).toContain("Holiday Announcement"); // every year
+    expect(first).not.toContain("Internal Examination Schedule (Mid-II)"); // 2nd to 4th year
+    const fourth = await titles(4);
+    expect(fourth).toContain("Placement Drive Registration Open");
+    expect(fourth).not.toContain("Anti-ragging undertaking: submission deadline");
+    await expectError(db.query("update announcements set years = '{7}' where college_id = $1", [COLLEGE_A]), /check/i);
   });
 
   it("can count a view on a public announcement but not on a draft", async () => {

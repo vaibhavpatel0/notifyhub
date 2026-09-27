@@ -2,11 +2,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requestTime } from "@/lib/format";
+import { ordinal, requestTime } from "@/lib/format";
 import { EventRow } from "@/components/portal/EventRow";
 import { NoticeRow } from "@/components/portal/NoticeRow";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getLiveAnnouncements, getPublicCollege, getPublicDepartments, getPublicEvents } from "@/lib/data";
+import { getLiveAnnouncements, getPublicCollege, getPublicDepartments, getPublicEvents, yearParam } from "@/lib/data";
 import { portalPath } from "@/lib/tenant";
 
 type Params = Promise<{ college: string; department: string }>;
@@ -18,17 +18,19 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   return d ? { title: d.name, description: `Notices and events from the ${d.name} department.` } : {};
 }
 
-export default async function DepartmentPage({ params }: { params: Params }) {
-  const { college: slug, department } = await params;
+export default async function DepartmentPage({ params, searchParams }: { params: Params; searchParams: Promise<{ year?: string }> }) {
+  const [{ college: slug, department }, sp] = await Promise.all([params, searchParams]);
   const college = await getPublicCollege(slug);
   if (!college) notFound();
   const dept = (await getPublicDepartments(college.id)).find((d) => d.slug === department);
   if (!dept) notFound();
   const p = (path: string) => portalPath(slug, path);
+  const year = yearParam(sp.year, dept.years_count);
+  const yearHref = (y: number | null) => p(`/departments/${dept.slug}${y ? `?year=${y}` : ""}`);
 
   const [notices, events] = await Promise.all([
-    getLiveAnnouncements(college.id, { departmentId: dept.id, limit: 30 }),
-    getPublicEvents(college.id, { when: "upcoming", departmentId: dept.id, limit: 10 }),
+    getLiveAnnouncements(college.id, { departmentId: dept.id, year, limit: 30 }),
+    getPublicEvents(college.id, { when: "upcoming", departmentId: dept.id, year, limit: 10 }),
   ]);
   const important = notices.filter((n) => n.is_urgent || n.is_pinned);
   const rest = notices.filter((n) => !n.is_urgent && !n.is_pinned);
@@ -51,7 +53,29 @@ export default async function DepartmentPage({ params }: { params: Params }) {
         </div>
       </section>
 
-      <div className="page-width grid gap-10 py-8 lg:grid-cols-[1fr_340px]">
+      <div className="page-width pt-6">
+        <nav aria-label="Filter by year" className="-mx-4 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+          <ul className="flex w-max gap-1.5 sm:w-auto sm:flex-wrap">
+            {[null, ...Array.from({ length: dept.years_count }, (_, i) => i + 1)].map((y) => {
+              const active = year === y;
+              return (
+                <li key={y ?? "all"}>
+                  <Link
+                    href={yearHref(y)}
+                    aria-current={active ? "true" : undefined}
+                    className={`inline-flex min-h-9 items-center rounded-md border px-3 text-[0.875rem] font-bold whitespace-nowrap ${active ? "border-transparent text-white" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"}`}
+                    style={active ? { background: "var(--tenant)" } : undefined}
+                  >
+                    {y ? `${ordinal(y)} year` : "All years"}
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
+      </div>
+
+      <div className="page-width grid gap-10 pt-6 pb-8 lg:grid-cols-[1fr_340px]">
         <div className="space-y-8">
           {important.length ? (
             <section aria-labelledby="dept-important">
@@ -68,7 +92,7 @@ export default async function DepartmentPage({ params }: { params: Params }) {
                 {rest.map((n) => <NoticeRow key={n.id} n={n} href={p(`/announcements/${n.id}`)} tz={college.timezone} showDept={false} now={now} />)}
               </div>
             ) : (
-              <EmptyState title={important.length ? "No other notices" : "No department notices right now"} />
+              <EmptyState title={important.length ? "No other notices" : year ? `No notices for ${ordinal(year)} year right now` : "No department notices right now"} />
             )}
           </section>
         </div>

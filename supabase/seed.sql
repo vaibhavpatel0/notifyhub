@@ -145,3 +145,11 @@ values
    ((date_trunc('day', now() at time zone 'Asia/Kolkata') + interval '-10 days 10 hours') at time zone 'Asia/Kolkata'),
    ((date_trunc('day', now() at time zone 'Asia/Kolkata') + interval '-10 days 13 hours') at time zone 'Asia/Kolkata'),
    null, false);
+
+-- Which student years each sample notice and event is for (empty = every year).
+update public.announcements set years = '{2,3,4}' where college_id = '00000000-0000-4000-8000-000000000001' and title = 'Internal Examination Schedule (Mid-II)';
+update public.announcements set years = '{4}'     where college_id = '00000000-0000-4000-8000-000000000001' and title = 'Placement Drive Registration Open';
+update public.announcements set years = '{1}'     where college_id = '00000000-0000-4000-8000-000000000001' and title = 'Anti-ragging undertaking: submission deadline';
+update public.announcements set years = '{2,3}'   where college_id = '00000000-0000-4000-8000-000000000001' and title = 'CSE: Lab internal evaluation schedule';
+update public.announcements set years = '{3}'     where college_id = '00000000-0000-4000-8000-000000000001' and title = 'MECH: Industrial visit consent forms';
+update public.events        set years = '{2,3}'   where college_id = '00000000-0000-4000-8000-000000000001' and title = 'Technical Workshop: Embedded Systems';

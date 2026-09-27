@@ -10,7 +10,7 @@ export default async function NewAnnouncement({ params }: { params: Promise<{ co
   const { college: slug } = await params;
   const ctx = await requireCollegeMember(slug);
   const supabase = await createClient();
-  const { data } = await supabase.from("departments").select("id, name, code, slug").eq("college_id", ctx.college.id).order("sort_order");
+  const { data } = await supabase.from("departments").select("id, name, code, slug, years_count").eq("college_id", ctx.college.id).order("sort_order");
   return (
     <div>
       <PageHeader title="New announcement" />

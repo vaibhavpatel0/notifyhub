@@ -6,6 +6,7 @@ import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { SubmitButton } from "@/components/ui/SubmitButton";
 import type { CampusEvent, DepartmentRef } from "@/lib/types";
 import { FileUpload } from "./FileUpload";
+import { YearPicker } from "./YearPicker";
 import { useFormAction } from "@/lib/use-form-action";
 
 export function EventForm({
@@ -25,6 +26,7 @@ export function EventForm({
 }) {
   const [state, formProps, pending] = useFormAction(saveEvent);
   const [scope, setScope] = useState<"college" | "department">(lockedDepartment ? "department" : initial?.scope ?? "college");
+  const [departmentId, setDepartmentId] = useState(initial?.department_id ?? "");
   const [multiDay, setMultiDay] = useState(Boolean(initialDates && initialDates.endDate && initialDates.endDate !== initialDates.date));
 
   return (
@@ -111,7 +113,7 @@ export function EventForm({
               {scope === "department" ? (
                 <label className="mt-3 block">
                   <span className="sr-only">Department</span>
-                  <select name="department_id" className="input" defaultValue={initial?.department_id ?? ""}>
+                  <select name="department_id" className="input" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}>
                     <option value="">Choose a department</option>
                     {departments.map((d) => <option key={d.id} value={d.id}>{d.code}: {d.name}</option>)}
                   </select>
@@ -120,6 +122,7 @@ export function EventForm({
               ) : null}
             </div>
           )}
+          <YearPicker departments={departments} scope={scope} departmentId={departmentId} lockedDepartment={lockedDepartment} initial={initial?.years} />
           <label className="flex cursor-pointer items-start gap-3">
             <input type="checkbox" name="countdown_enabled" defaultChecked={initial?.countdown_enabled ?? true} className="mt-1 accent-brand" />
             <span>

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Paperclip } from "lucide-react";
-import { CategoryTag, DeptTag, NewBadge, UrgentBadge } from "@/components/ui/Badges";
+import { CategoryTag, DeptTag, NewBadge, UrgentBadge, YearTag } from "@/components/ui/Badges";
 import { formatDate, isNew, refLabel, relativeTime } from "@/lib/format";
 
 export interface NoticeRowData {
@@ -15,6 +15,7 @@ export interface NoticeRowData {
   ref_no: number | null;
   ref_year: number | null;
   attachment_url: string | null;
+  years?: number[] | null;
   department?: { code: string; name: string } | null;
 }
 
@@ -28,6 +29,7 @@ export function NoticeRow({ n, href, tz, showDept = true, now }: { n: NoticeRowD
         {n.is_urgent ? <UrgentBadge /> : null}
         <CategoryTag value={n.category} />
         {showDept && n.department ? <DeptTag code={n.department.code} name={n.department.name} /> : null}
+        <YearTag years={n.years} />
         {isNew(n.published_at, 48, now) ? <NewBadge /> : null}
       </div>
       <h3 className="mt-2 text-[1.0625rem] leading-snug font-bold">

@@ -41,6 +41,16 @@ export function DepartmentForm({ slug, collegeId, initial, portalBase }: { slug:
         </span>
         <FieldError state={state} name="slug" />
       </label>
+      <label className="block max-w-xs">
+        <span className="field-label">Course length</span>
+        <select name="years_count" className="input" defaultValue={String(initial?.years_count ?? 4)}>
+          {[1, 2, 3, 4, 5, 6].map((n) => (
+            <option key={n} value={n}>{n} {n === 1 ? "year" : "years"}</option>
+          ))}
+        </select>
+        <span className="field-hint">Sets the years admins can pick on notices, for example 4 for B.Tech or 2 for MBA.</span>
+        <FieldError state={state} name="years_count" />
+      </label>
       <label className="block">
         <span className="field-label">Description</span>
         <textarea name="description" className="input min-h-28" defaultValue={initial?.description ?? ""} maxLength={2000} />

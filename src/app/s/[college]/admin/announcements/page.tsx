@@ -7,7 +7,7 @@ import { deleteAnnouncement } from "@/lib/actions/admin";
 import { requireCollegeMember } from "@/lib/auth";
 import { categoryLabel } from "@/lib/constants";
 import { noticeState } from "@/lib/content-status";
-import { formatDateTime, refLabel, requestTime } from "@/lib/format";
+import { formatDateTime, refLabel, requestTime, formatYears } from "@/lib/format";
 import { createClient } from "@/lib/supabase/server";
 import { portalPath } from "@/lib/tenant";
 
@@ -26,7 +26,7 @@ export default async function AdminAnnouncements({ params, searchParams }: { par
   const supabase = await createClient();
   let q = supabase
     .from("announcements")
-    .select("id, title, category, status, scope, is_urgent, is_pinned, published_at, expires_at, view_count, ref_no, ref_year, department:departments(code)")
+    .select("id, title, category, status, scope, is_urgent, is_pinned, published_at, expires_at, view_count, ref_no, ref_year, years, department:departments(code)")
     .eq("college_id", ctx.college.id)
     .order("published_at", { ascending: false })
     .limit(200);
@@ -79,6 +79,7 @@ export default async function AdminAnnouncements({ params, searchParams }: { par
                       <span>{categoryLabel(n.category)}</span>
                       {refLabel(n.ref_no, n.ref_year) ? <span>{refLabel(n.ref_no, n.ref_year)}</span> : null}
                       {n.is_pinned ? <span className="font-bold text-ink-2">Important</span> : null}
+                      {n.years?.length ? <span>{formatYears(n.years)}</span> : null}
                     </div>
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap">{n.dept?.code ?? "College"}</td>

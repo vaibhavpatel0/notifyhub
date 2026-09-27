@@ -4,12 +4,13 @@ import { notFound } from "next/navigation";
 import { AutoSubmitSelect } from "@/components/portal/FilterControls";
 import { EventRow } from "@/components/portal/EventRow";
 import { EmptyState } from "@/components/ui/EmptyState";
-import { getPublicCollege, getPublicDepartments, getPublicEvents } from "@/lib/data";
+import { getPublicCollege, getPublicDepartments, getPublicEvents, yearParam } from "@/lib/data";
+import { ordinal } from "@/lib/format";
 import { portalPath } from "@/lib/tenant";
 
 export const metadata: Metadata = { title: "Events" };
 
-export default async function EventsPage({ params, searchParams }: { params: Promise<{ college: string }>; searchParams: Promise<{ when?: string; dept?: string }> }) {
+export default async function EventsPage({ params, searchParams }: { params: Promise<{ college: string }>; searchParams: Promise<{ when?: string; dept?: string; year?: string }> }) {
   const [{ college: slug }, sp] = await Promise.all([params, searchParams]);
   const college = await getPublicCollege(slug);
   if (!college) notFound();
@@ -17,9 +18,11 @@ export default async function EventsPage({ params, searchParams }: { params: Pro
   const when = sp.when === "past" ? "past" : "upcoming";
   const departments = await getPublicDepartments(college.id);
   const dept = departments.find((d) => d.slug === sp.dept) ?? null;
-  const events = await getPublicEvents(college.id, { when, departmentId: dept?.id, limit: 50 });
+  const maxYears = dept?.years_count ?? Math.max(4, ...departments.map((d) => d.years_count ?? 4));
+  const year = yearParam(sp.year, maxYears);
+  const events = await getPublicEvents(college.id, { when, departmentId: dept?.id, year, limit: 50 });
 
-  const tab = (w: "upcoming" | "past") => p(`/events?when=${w}${dept ? `&dept=${dept.slug}` : ""}`);
+  const tab = (w: "upcoming" | "past") => p(`/events?when=${w}${dept ? `&dept=${dept.slug}` : ""}${year ? `&year=${year}` : ""}`);
 
   return (
     <div className="page-width py-8 sm:py-10">
@@ -40,15 +43,25 @@ export default async function EventsPage({ params, searchParams }: { params: Pro
             </Link>
           ))}
         </nav>
-        <form method="get" action={p("/events")}>
+        <form method="get" action={p("/events")} className="flex flex-wrap items-end gap-3">
           <input type="hidden" name="when" value={when} />
-          <label>
+          <label className="min-w-48 flex-1 sm:flex-none">
             <span className="field-label">Department</span>
             <AutoSubmitSelect name="dept" defaultValue={dept?.slug ?? ""} className="input min-w-56">
               <option value="">All departments</option>
               {departments.map((d) => <option key={d.id} value={d.slug}>{d.code}: {d.name}</option>)}
             </AutoSubmitSelect>
           </label>
+          <label className="min-w-36 flex-1 sm:flex-none">
+            <span className="field-label">Year</span>
+            <AutoSubmitSelect name="year" defaultValue={year ? String(year) : ""} className="input">
+              <option value="">All years</option>
+              {Array.from({ length: maxYears }, (_, i) => i + 1).map((y) => (
+                <option key={y} value={y}>{ordinal(y)} year</option>
+              ))}
+            </AutoSubmitSelect>
+          </label>
+          <noscript><button type="submit" className="btn-secondary">Apply</button></noscript>
         </form>
       </div>
 

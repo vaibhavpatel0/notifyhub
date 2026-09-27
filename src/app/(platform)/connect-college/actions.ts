@@ -13,6 +13,7 @@ import { checkDnsVerification, checkMetaVerification, DNS_RECORD_HOST, DNS_RECOR
 import { generateOtp, hashOtp, OTP_MAX_ATTEMPTS, OTP_RESEND_SECONDS, OTP_TTL_MINUTES, otpMatches } from "@/lib/otp";
 import { EmailNotConfiguredError, emailConfigured, otpEmail as buildOtpEmail, sendEmail } from "@/lib/email";
 import { safeFetchBytes } from "@/lib/onboarding/safe-fetch";
+import { defaultCourseYears } from "@/lib/format";
 import type { HodInvite, WizardState } from "@/lib/onboarding/state";
 import { addTeamMember, clearAbandonedSignup, createAccountLink, deliverAccountLink } from "@/lib/account-links";
 
@@ -569,7 +570,10 @@ export async function createCollegeAccount(_prev: unknown, formData: FormData): 
       while (used.has(deptSlug)) deptSlug = `${deptSlug}-${i}`;
       used.add(deptSlug);
       deptSlugs.push(deptSlug);
-      return { college_id: r.college.id, name: d.name, code: d.code.toUpperCase().slice(0, 12), slug: deptSlug, sort_order: i + 1 };
+      return {
+        college_id: r.college.id, name: d.name, code: d.code.toUpperCase().slice(0, 12), slug: deptSlug, sort_order: i + 1,
+        years_count: defaultCourseYears(d.code, d.name),
+      };
     });
     const { error } = await db.from("departments").upsert(rows, { onConflict: "college_id,slug", ignoreDuplicates: true });
     if (error) console.error("departments insert", error);

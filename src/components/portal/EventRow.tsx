@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { MapPin } from "lucide-react";
-import { DeptTag } from "@/components/ui/Badges";
+import { DeptTag, YearTag } from "@/components/ui/Badges";
 import { dateParts, formatDate, formatTime } from "@/lib/format";
 import { Countdown } from "./Countdown";
 
@@ -11,6 +11,7 @@ export interface EventRowData {
   ends_at: string | null;
   venue: string | null;
   countdown_enabled: boolean;
+  years?: number[] | null;
   department?: { code: string; name: string } | null;
 }
 
@@ -27,9 +28,10 @@ export function EventRow({ e, href, tz, compact = false }: { e: EventRowData; hr
         <span className="text-[0.75rem] font-bold">{d.month}</span>
       </div>
       <div className="min-w-0 flex-1">
-        {e.department ? (
-          <div className="mb-1">
-            <DeptTag code={e.department.code} name={e.department.name} />
+        {e.department || e.years?.length ? (
+          <div className="mb-1 flex flex-wrap gap-1.5">
+            {e.department ? <DeptTag code={e.department.code} name={e.department.name} /> : null}
+            <YearTag years={e.years} />
           </div>
         ) : null}
         <h3 className="text-[1.0625rem] leading-snug font-bold">

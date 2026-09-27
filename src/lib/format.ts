@@ -98,3 +98,32 @@ export function formatBytes(n: number) {
 export function requestTime() {
   return Date.now();
 }
+
+/** 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th" ... */
+export function ordinal(n: number) {
+  const s = n % 100 >= 11 && n % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[n % 10] ?? "th";
+  return `${n}${s}`;
+}
+
+/** [] -> "All years", [2] -> "2nd year", [2, 3, 4] -> "2nd, 3rd & 4th year" */
+export function formatYears(years: readonly number[] | null | undefined) {
+  const list = [...new Set(years ?? [])].sort((a, b) => a - b);
+  if (list.length === 0) return "All years";
+  const parts = list.map(ordinal);
+  const joined = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(", ")} & ${parts[parts.length - 1]}`;
+  return `${joined} year`;
+}
+
+/** Reads the `years` checkboxes of a form: unique, sorted, 1 to 6. Selecting every year means "all years". */
+export function parseYears(values: FormDataEntryValue[], maxYears = 6): number[] {
+  const list = [...new Set(values.map((v) => Number(v)).filter((n) => Number.isInteger(n) && n >= 1 && n <= Math.min(maxYears, 6)))].sort((a, b) => a - b);
+  return list.length >= maxYears ? [] : list;
+}
+
+/** Best guess at a department's course length from its code or name; admins can change it. */
+export function defaultCourseYears(code: string, name: string) {
+  const c = code.toUpperCase().replace(/[.\s]/g, "");
+  if (["MBA", "MCA", "MTECH", "MSC", "MCOM", "MA", "PGDM"].includes(c) || /^(master|m\.? ?tech|post ?graduate)/i.test(name)) return 2;
+  if (c === "BARCH" || /architecture/i.test(name)) return 5;
+  return 4;
+}

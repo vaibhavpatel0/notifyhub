@@ -1,5 +1,6 @@
 import { BellRing } from "lucide-react";
 import { categoryLabel } from "@/lib/constants";
+import { formatYears } from "@/lib/format";
 
 export function UrgentBadge({ compact = false }: { compact?: boolean }) {
   return (
@@ -32,6 +33,16 @@ export function DeptTag({ code, name }: { code: string; name?: string }) {
       style={{ background: "var(--tenant-tint)", color: "var(--tenant-strong)" }}
     >
       {code}
+    </span>
+  );
+}
+
+/** Which student years a notice or event is for. Renders nothing for "all years". */
+export function YearTag({ years }: { years?: number[] | null }) {
+  if (!years?.length) return null;
+  return (
+    <span className="inline-flex items-center rounded-xs border border-line px-1.5 py-0.5 text-[0.75rem] font-bold text-ink-2">
+      {formatYears(years)}
     </span>
   );
 }
