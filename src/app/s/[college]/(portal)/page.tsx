@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BellRing, Search } from "lucide-react";
+import { BellRing, CalendarDays, Megaphone, Search } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EventRow } from "@/components/portal/EventRow";
 import { NoticeRow } from "@/components/portal/NoticeRow";
@@ -28,10 +28,12 @@ export default async function PortalHome({ params }: { params: Promise<{ college
     s.important ? getLiveAnnouncements(college.id, { pinned: true, limit: 5 }) : [],
     s.events ? getPublicEvents(college.id, { when: "upcoming", limit: 4 }) : [],
     s.departments ? getPublicDepartments(college.id) : [],
-    getLiveAnnouncements(college.id, { limit: 6 }),
-    getPublicEvents(college.id, { when: "upcoming", limit: 3 }),
+    getLiveAnnouncements(college.id, { limit: 30 }),
+    getPublicEvents(college.id, { when: "upcoming", limit: 12 }),
   ]);
+  const boardDepartments = (s.departments ? departments : await getPublicDepartments(college.id)).map((d) => ({ slug: d.slug, code: d.code, name: d.name }));
   const now = requestTime();
+  const today = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: tz }).format(new Date(now));
   const board = boardItems(boardNotices, boardEvents, { tz, now, p });
 
   return (
@@ -91,20 +93,34 @@ export default async function PortalHome({ params }: { params: Promise<{ college
           </section>
         ) : null}
 
-        {board.length >= 2 ? (
-          <section aria-labelledby="board-heading">
-            <div className="mb-3 flex items-end justify-between gap-4">
-              <div>
-                <h2 id="board-heading" className="hd-2">Notice board</h2>
-                <p className="meta mt-0.5">Latest notices and upcoming events. Point at or tap a card to open it.</p>
-              </div>
+        {/* Always shown, so every portal has its notice board even before the first notice. */}
+        <section aria-labelledby="board-heading">
+          <div className="mb-3 flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+            <div>
+              <h2 id="board-heading" className="hd-2">Notice board</h2>
+              <p className="meta mt-0.5">Latest notices and upcoming events.{board.length > 1 ? " Point at or tap a card to open it." : ""}</p>
+            </div>
+            <div className="flex items-center gap-4">
+              <p className="inline-flex items-center gap-1.5 rounded-md border border-line bg-surface px-2.5 py-1 text-[0.875rem] font-bold">
+                <CalendarDays size={15} aria-hidden="true" style={{ color: "var(--tenant)" }} />
+                <span className="sr-only">Today is </span>
+                <time dateTime={new Date(now).toISOString().slice(0, 10)}>{today}</time>
+              </p>
               <Link href={p("/announcements")} className="text-[0.9375rem] font-bold whitespace-nowrap hover:underline" style={{ color: "var(--tenant)" }}>
                 All notices
               </Link>
             </div>
-            <NoticeBoard items={board} label="Notice board" />
-          </section>
-        ) : null}
+          </div>
+          {board.length ? (
+            <NoticeBoard items={board} departments={boardDepartments} departmentHref={p("/departments")} label="Notice board" />
+          ) : (
+            <div className="nb-empty">
+              <Megaphone size={40} strokeWidth={1.5} aria-hidden="true" className="opacity-40" />
+              <p className="mt-3 text-[1.125rem] font-extrabold">The notice board is empty for now</p>
+              <p className="mt-1 max-w-[46ch] text-white/85">New notices and upcoming events from {college.short_name || college.name} will appear here as soon as they are posted.</p>
+            </div>
+          )}
+        </section>
 
         <div className="grid gap-10 lg:grid-cols-[1fr_360px]">
           {s.announcements ? (
@@ -243,7 +259,7 @@ function HomeSearch({ action }: { action: string }) {
   );
 }
 
-/** Urgent notices first, then new notices and upcoming events alternately; at most six cards. */
+/** Urgent notices first, then new notices and upcoming events alternately. The board shows up to six per filter. */
 function boardItems(
   notices: Announcement[],
   events: CampusEvent[],
@@ -263,6 +279,7 @@ function boardItems(
     when: `Posted ${relativeTime(n.published_at, now)}`,
     chip: short(n.published_at),
     urgent: n.is_urgent,
+    dept: n.department?.slug ?? null,
   });
   const fromEvent = (e: CampusEvent): BoardItem => {
     const d = dateParts(e.starts_at, tz);
@@ -276,6 +293,7 @@ function boardItems(
       when: `${d.weekday} ${d.day} ${d.month}, ${formatTime(e.starts_at, tz)}`,
       chip: short(e.starts_at),
       urgent: false,
+      dept: e.department?.slug ?? null,
     };
   };
   const urgentFirst = notices.filter((n) => n.is_urgent).map(fromNotice);
@@ -286,5 +304,5 @@ function boardItems(
     if (rest[i]) mixed.push(rest[i]!);
     if (evs[i]) mixed.push(evs[i]!);
   }
-  return [...urgentFirst, ...mixed].slice(0, 6);
+  return [...urgentFirst, ...mixed];
 }

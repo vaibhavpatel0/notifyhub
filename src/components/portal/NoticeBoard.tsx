@@ -19,6 +19,101 @@ export interface BoardItem {
   /** Short date for the chip on narrow panels, e.g. "30 Sept". */
   chip: string;
   urgent: boolean;
+  /** Department slug, or null for a college-wide ("General") notice or event. */
+  dept: string | null;
+}
+
+export interface BoardDepartment {
+  slug: string;
+  code: string;
+  name: string;
+}
+
+type Filter = "all" | "general" | string;
+
+/** Most cards shown at once; filtering picks the newest for that department. */
+const MAX_CARDS = 6;
+
+/**
+ * Notice board with department buttons: All, General (college-wide) and one per
+ * department. Choosing one narrows the cards to that department's notices and
+ * events. The cards are re-mounted per filter so the first card opens again.
+ */
+export function NoticeBoard({
+  items,
+  departments,
+  departmentHref,
+  label,
+}: {
+  items: BoardItem[];
+  departments: BoardDepartment[];
+  /** Base path of department pages, e.g. /s/vits/departments */
+  departmentHref: string;
+  label: string;
+}) {
+  const [filter, setFilter] = useState<Filter>("all");
+  const count = (f: Filter) => items.filter((it) => matches(it, f)).length;
+  const shown = items.filter((it) => matches(it, filter)).slice(0, MAX_CARDS);
+  const dept = departments.find((d) => d.slug === filter);
+  const options: { value: Filter; label: string; title: string }[] = [
+    { value: "all", label: "All", title: "Every notice and event" },
+    { value: "general", label: "General", title: "College-wide notices and events" },
+    ...departments.map((d) => ({ value: d.slug, label: d.code, title: d.name })),
+  ];
+
+  return (
+    <div>
+      <div role="group" aria-label="Show notices from" className="-mx-4 mb-3 overflow-x-auto px-4 sm:mx-0 sm:px-0">
+        <div className="flex w-max gap-1.5 sm:w-auto sm:flex-wrap">
+          {options.map((o) => {
+            const on = filter === o.value;
+            const n = count(o.value);
+            return (
+              <button
+                key={o.value}
+                type="button"
+                title={o.title}
+                aria-pressed={on}
+                onClick={() => setFilter(o.value)}
+                className={`inline-flex min-h-9 items-center gap-1.5 rounded-md border px-3 text-[0.875rem] font-bold whitespace-nowrap ${
+                  on ? "border-transparent text-white" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink"
+                }`}
+                style={on ? { background: "var(--tenant)" } : undefined}
+              >
+                {o.label}
+                <span className={`rounded-xs px-1 text-[0.75rem] tabular-nums ${on ? "bg-white/20" : "bg-sunken text-ink-3"}`}>{n}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {shown.length ? (
+        <BoardCards key={filter} items={shown} label={dept ? `${label}: ${dept.name}` : label} />
+      ) : (
+        <div className="nb-empty !min-h-[160px]">
+          <p className="text-[1.0625rem] font-extrabold">
+            {dept ? `Nothing from ${dept.code} on the board right now` : "No college-wide notices right now"}
+          </p>
+          <p className="mt-1 text-white/85">Try another department, or choose All.</p>
+        </div>
+      )}
+
+      {dept ? (
+        <p className="mt-3 text-[0.9375rem]">
+          <Link href={`${departmentHref}/${dept.slug}`} className="font-bold hover:underline" style={{ color: "var(--tenant)" }}>
+            Every {dept.code} notice and event
+          </Link>
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function matches(item: BoardItem, filter: Filter) {
+  if (filter === "all") return true;
+  if (filter === "general") return item.dept === null;
+  return item.dept === filter;
 }
 
 /**
@@ -30,7 +125,7 @@ export interface BoardItem {
  * Built on CSS transitions (no animation library) so it adds almost nothing to
  * the page weight. Motion is switched off for people who ask for reduced motion.
  */
-export function NoticeBoard({ items, label }: { items: BoardItem[]; label: string }) {
+function BoardCards({ items, label }: { items: BoardItem[]; label: string }) {
   const [active, setActive] = useState(0);
   const links = useRef<(HTMLAnchorElement | null)[]>([]);
   // Panel touched while still closed: that tap only opens it (focus fires before click, so check at touch-down).

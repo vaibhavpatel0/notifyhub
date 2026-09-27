@@ -219,6 +219,18 @@ textarea.input { min-height: 8rem; line-height: 1.625; }
   white-space: nowrap;
   text-overflow: ellipsis;
 }
+.nb-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 220px;
+  padding: 32px 20px;
+  border-radius: 14px;
+  text-align: center;
+  color: #fff;
+  background: color-mix(in srgb, var(--tenant) 82%, black);
+}
 /* Narrow (closed) panels show only the date; the kind appears once a panel opens. */
 .nb-panel:not([data-active]) .nb-chip-kind { display: none; }
 .nb-panel[data-urgent]:not([data-active]) .nb-chip { background: rgb(0 0 0 / 0.55); }
