@@ -83,7 +83,8 @@ export function extractFromHtml(html: string, pageUrl: string): ExtractedInfo {
     if (addr) emails.add(addr);
   });
   $("script, style, noscript").remove();
-  const text = $("body").text().replace(/\s+/g, " ");
+  // Replace every tag with a space before reading text, so "a@b.in<br>Phone" is not read as "a@b.inPhone".
+  const text = cheerio.load(($("body").html() ?? "").replace(/<[^>]+>/g, " ")).text().replace(/\s+/g, " ");
   for (const m of text.match(EMAIL_IN_TEXT) ?? []) {
     const e = m.toLowerCase().replace(/\.$/, "");
     if (!/\.(png|jpe?g|gif|webp|svg)$/.test(e)) emails.add(e);

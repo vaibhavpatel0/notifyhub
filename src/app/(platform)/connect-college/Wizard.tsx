@@ -1,13 +1,14 @@
 "use client";
 
 import { useActionState, useCallback, useEffect, useRef, useState, useTransition } from "react";
-import { Check, CircleAlert, Copy, X } from "lucide-react";
+import { ArrowLeft, Check, CircleAlert, Copy, X } from "lucide-react";
 import { FieldError, FormMessage } from "@/components/ui/FormMessage";
 import { Spinner, SubmitButton } from "@/components/ui/SubmitButton";
 import { ROOT_DOMAIN, USE_SUBDOMAINS } from "@/lib/env";
 import { STAGES, type AnalysisSummary, type WizardState } from "@/lib/onboarding/state";
 import type { ActionResult } from "@/lib/types";
 import {
+  cancelOnboarding,
   checkOwnership,
   checkSlugAvailability,
   chooseSlug,
@@ -62,6 +63,30 @@ export function Wizard({ initial, preferredSlug }: { initial: WizardState | null
 
   const current = railIndex(step, state);
 
+  // Where "Back" goes from each step. Steps that are already locked in on the
+  // server (the website analysis, a completed verification) cannot be undone,
+  // only started over.
+  const backTo: Partial<Record<Step, Step>> = { verify: "review", account: "slug" };
+  const back = backTo[step];
+  const canCancel = step !== "details" && step !== "done";
+
+  const [cancelling, startCancel] = useTransition();
+  const cancel = () => {
+    if (!window.confirm("Cancel this registration? Everything entered so far is deleted and you start again from the beginning.")) return;
+    startCancel(async () => {
+      const res = await cancelOnboarding();
+      if (res.ok) {
+        setState(null);
+        setStep("details");
+        setFlash(null);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      } else {
+        setFlash(null);
+        window.alert(res.error);
+      }
+    });
+  };
+
   return (
     <div className="mt-8 grid gap-8 lg:grid-cols-[260px_1fr]">
       <ProgressRail current={current} />
@@ -78,6 +103,21 @@ export function Wizard({ initial, preferredSlug }: { initial: WizardState | null
         {step === "slug" && state && <SlugStep state={state} preferred={preferredSlug} onDone={advance} />}
         {step === "account" && state && <AccountStep state={state} onDone={advance} />}
         {step === "done" && state && <DoneStep state={state} />}
+
+        {back || canCancel ? (
+          <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+            {back ? (
+              <button type="button" className="btn-ghost btn-sm" onClick={() => { setFlash(null); setStep(back); }}>
+                <ArrowLeft size={15} aria-hidden="true" /> Back
+              </button>
+            ) : <span />}
+            {canCancel ? (
+              <button type="button" className="btn-ghost btn-sm text-urgent hover:bg-urgent-tint hover:text-urgent" onClick={cancel} disabled={cancelling}>
+                {cancelling ? "Cancelling" : "Cancel and start over"}
+              </button>
+            ) : null}
+          </div>
+        ) : null}
       </section>
     </div>
   );

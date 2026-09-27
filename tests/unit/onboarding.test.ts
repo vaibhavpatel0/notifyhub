@@ -120,6 +120,11 @@ describe("HTML extraction", () => {
     expect(info.social.facebook).toBe("https://www.facebook.com/examplecollege");
   });
 
+  it("does not glue text across line breaks", () => {
+    const i = extractFromHtml(`<body><p>Email: <a href="#">x@college.ac.in</a><br>Phone: 9876543210</p><p>info@college.ac.in<br>Principal</p></body>`, "https://college.ac.in/");
+    expect(i.emails.sort()).toEqual(["info@college.ac.in", "x@college.ac.in"]);
+  });
+
   it("recognises departments", () => {
     expect(info.departments.map((d) => d.code).sort()).toEqual(["CIVIL", "CSE", "ECE", "MBA"]);
   });

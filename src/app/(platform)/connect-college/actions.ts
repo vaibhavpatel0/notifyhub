@@ -7,7 +7,7 @@ import { platformUrl, portalHost, portalUrl } from "@/lib/tenant";
 import type { ActionResult } from "@/lib/types";
 import { STORAGE_BUCKET } from "@/lib/constants";
 import { EMAIL_RE, emailMatchesDomain, isFreeMail, normaliseWebsiteUrl, registrableDomain } from "@/lib/onboarding/domain";
-import { getOnboarding, startSession, type OnboardingRecord } from "@/lib/onboarding/session";
+import { clearSession, getOnboarding, startSession, type OnboardingRecord } from "@/lib/onboarding/session";
 import { isAllowedSlug, slugCandidates, slugify } from "@/lib/onboarding/slug";
 import { checkDnsVerification, checkMetaVerification, DNS_RECORD_HOST, DNS_RECORD_VALUE, META_TAG } from "@/lib/onboarding/verify";
 import { generateOtp, hashOtp, OTP_MAX_ATTEMPTS, OTP_RESEND_SECONDS, OTP_TTL_MINUTES, otpMatches } from "@/lib/otp";
@@ -172,7 +172,7 @@ const reviewSchema = z.object({
 });
 
 export async function saveReviewedDetails(input: z.input<typeof reviewSchema>): Promise<ActionResult<WizardState>> {
-  const r = await requireOnboarding([1, 2, 3]);
+  const r = await requireOnboarding([1, 2, 3, 4]);
   if ("error" in r) return { ok: false, error: r.error };
   const parsed = reviewSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: "Check the college name and department names." };
@@ -550,4 +550,22 @@ async function importLogo(collegeId: string, url: string): Promise<string | null
   } catch {
     return null;
   }
+}
+
+// ---------------------------------------------------------------------------
+// Cancel: throw away an unfinished registration and release its address
+// ---------------------------------------------------------------------------
+
+export async function cancelOnboarding(): Promise<ActionResult> {
+  const r = await getOnboarding();
+  if (r && r.onboarding.stage < 7 && r.college.status === "onboarding") {
+    // Deleting the draft college removes its onboarding record, analysis, codes and reserved address.
+    const { error } = await createAdminClient().from("colleges").delete().eq("id", r.college.id).eq("status", "onboarding");
+    if (error) {
+      console.error("cancelOnboarding", error);
+      return { ok: false, error: GENERIC_ERROR };
+    }
+  }
+  await clearSession();
+  return { ok: true };
 }
