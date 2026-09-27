@@ -4,7 +4,7 @@ import { Wordmark } from "@/components/ui/Logo";
 import { signOut } from "@/lib/actions/auth";
 import { requirePlatformAdmin } from "@/lib/auth";
 
-export const metadata: Metadata = { title: { default: "NotifyHub staff", template: "%s | NotifyHub staff" }, robots: { index: false } };
+export const metadata: Metadata = { title: { default: "Staff", template: "%s | NotifyHub staff" }, robots: { index: false } };
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
   const user = await requirePlatformAdmin();

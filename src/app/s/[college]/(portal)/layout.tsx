@@ -15,7 +15,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!college) return { title: "Portal not available", robots: { index: false } };
   const short = college.short_name || college.name;
   return {
-    title: { default: `${short} - College Announcements | NotifyHub`, template: `%s | ${short} | NotifyHub` },
+    title: { default: `${short} - College Announcements`, template: `%s | ${short} | NotifyHub` },
     description: `Latest announcements, events and notices from ${college.name}.`,
     alternates: { canonical: portalUrl(slug) },
     icons: college.logo_url ? { icon: college.logo_url } : undefined,
