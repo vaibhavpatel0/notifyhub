@@ -2,7 +2,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BellRing, CalendarDays, Megaphone, Search } from "lucide-react";
+import { BellRing, CalendarDays, ImageIcon, Megaphone, Search } from "lucide-react";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { EventRow } from "@/components/portal/EventRow";
 import { NoticeRow } from "@/components/portal/NoticeRow";
@@ -12,6 +12,7 @@ import { dateParts, formatDate, formatTime, refLabel, relativeTime, requestTime 
 import { categoryLabel } from "@/lib/constants";
 import type { Announcement, CampusEvent } from "@/lib/types";
 import { SUPABASE_URL } from "@/lib/env";
+import { getPortalAdminRole } from "@/lib/auth";
 import { portalPath } from "@/lib/tenant";
 
 export default async function PortalHome({ params }: { params: Promise<{ college: string }> }) {
@@ -33,6 +34,7 @@ export default async function PortalHome({ params }: { params: Promise<{ college
   ]);
   const boardDepartments = (s.departments ? departments : await getPublicDepartments(college.id)).map((d) => ({ slug: d.slug, code: d.code, name: d.name }));
   const now = requestTime();
+  const canEditLook = (await getPortalAdminRole(college.id)) === "college_admin";
   const today = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric", timeZone: tz }).format(new Date(now));
   const board = boardItems(boardNotices, boardEvents, { tz, now, p });
 
@@ -60,6 +62,11 @@ export default async function PortalHome({ params }: { params: Promise<{ college
             {college.welcome_text ? <p className="mt-3 max-w-[56ch] text-[1.0625rem] leading-relaxed text-white/90">{college.welcome_text}</p> : null}
             <HomeSearch action={p("/announcements")} />
           </div>
+          {canEditLook ? (
+            <Link href={p("/admin/profile#images")} className="absolute right-4 bottom-4 inline-flex items-center gap-1.5 rounded-md bg-black/55 px-3 py-1.5 text-[0.875rem] font-bold text-white hover:bg-black/70">
+              <ImageIcon size={15} aria-hidden="true" /> Change cover photo
+            </Link>
+          ) : null}
         </section>
       ) : (
         <section className="border-b border-line bg-surface">
@@ -67,6 +74,14 @@ export default async function PortalHome({ params }: { params: Promise<{ college
             <h1 className="hd-1 max-w-[22ch]">{college.welcome_heading || `Welcome to ${college.name}`}</h1>
             {college.welcome_text ? <p className="lede mt-3 max-w-[56ch]">{college.welcome_text}</p> : null}
             <HomeSearch action={p("/announcements")} />
+            {canEditLook ? (
+              <p className="mt-5 text-[0.9375rem]">
+                <Link href={p("/admin/profile#images")} className="inline-flex items-center gap-1.5 font-bold hover:underline" style={{ color: "var(--tenant)" }}>
+                  <ImageIcon size={15} aria-hidden="true" /> Add a cover photo and logo
+                </Link>
+                <span className="text-ink-3"> (only you can see this link)</span>
+              </p>
+            ) : null}
           </div>
         </section>
       )}

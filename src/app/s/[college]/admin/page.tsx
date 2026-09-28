@@ -70,7 +70,7 @@ export default async function AdminDashboard({ params, searchParams }: { params:
               ))}
             </ul>
           </div>
-          <Link href={p("/admin/profile")} className="btn-primary">Add logo and photo</Link>
+          <Link href={p("/admin/profile#images")} className="btn-primary">Add logo and photo</Link>
         </section>
       ) : null}
 

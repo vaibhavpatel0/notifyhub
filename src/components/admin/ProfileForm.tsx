@@ -45,6 +45,23 @@ export function ProfileForm({ slug, college, portalHost }: { slug: string; colle
       <input type="hidden" name="college" value={slug} />
       <div className="space-y-6">
         <FormMessage state={state} />
+        <Section id="images" title="Logo and cover photo">
+          <p className="-mt-2 text-[0.9375rem] text-ink-2">
+            The logo shows in the top corner of every portal page. The cover photo runs across the top of the portal home page. Upload, then press{" "}
+            <strong className="text-ink">Save and publish changes</strong> at the bottom.
+          </p>
+          <FileUpload
+            collegeId={college.id}
+            kind="cover"
+            name="cover_image_url"
+            label="Cover photo"
+            hint="A wide campus photo, at least 1600 px across. Up to 10 MB; it is resized automatically for phones."
+            defaultUrl={college.cover_image_url}
+            onChange={setCover}
+            preview="wide"
+          />
+          <FileUpload collegeId={college.id} kind="logo" name="logo_url" label="Logo" hint="Square PNG or SVG works best." defaultUrl={college.logo_url} onChange={setLogo} />
+        </Section>
         <Section title="Identity">
           <div className="grid gap-4 sm:grid-cols-[1fr_160px]">
             <label className="block">
@@ -56,10 +73,6 @@ export function ProfileForm({ slug, college, portalHost }: { slug: string; colle
               <span className="field-label">Short name</span>
               <input name="short_name" className="input" defaultValue={college.short_name ?? ""} onChange={set("short")} maxLength={20} />
             </label>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <FileUpload collegeId={college.id} kind="logo" name="logo_url" label="Logo" hint="Square PNG or SVG works best." defaultUrl={college.logo_url} onChange={setLogo} />
-            <FileUpload collegeId={college.id} kind="cover" name="cover_image_url" label="Cover photo" hint="Landscape, at least 1600 px wide." defaultUrl={college.cover_image_url} onChange={setCover} />
           </div>
           <fieldset>
             <legend className="field-label">Portal colour</legend>
@@ -171,9 +184,9 @@ export function ProfileForm({ slug, college, portalHost }: { slug: string; colle
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ id, title, children }: { id?: string; title: string; children: React.ReactNode }) {
   return (
-    <section className="panel space-y-4 p-5 sm:p-6">
+    <section id={id} className="panel scroll-mt-6 space-y-4 p-5 sm:p-6">
       <h2 className="hd-3">{title}</h2>
       {children}
     </section>

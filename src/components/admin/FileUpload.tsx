@@ -22,6 +22,7 @@ export function FileUpload({
   defaultUrl,
   defaultFileName,
   variant = "image",
+  preview = "thumb",
   onChange,
 }: {
   collegeId: string;
@@ -32,6 +33,8 @@ export function FileUpload({
   defaultUrl?: string | null;
   defaultFileName?: string | null;
   variant?: "image" | "file";
+  /** "wide": a large landscape preview (cover photos). */
+  preview?: "thumb" | "wide";
   onChange?: (url: string) => void;
 }) {
   const id = useId();
@@ -87,7 +90,15 @@ export function FileUpload({
         }}
       >
         {url && variant === "image" ? (
-          <img src={url} alt="" className="h-16 w-auto max-w-40 rounded-sm border border-line bg-surface object-contain" />
+          <img
+            src={url}
+            alt=""
+            className={
+              preview === "wide"
+                ? "aspect-[16/6] w-full rounded-sm border border-line bg-surface object-cover"
+                : "h-16 w-auto max-w-40 rounded-sm border border-line bg-surface object-contain"
+            }
+          />
         ) : url ? (
           <span className="inline-flex min-w-0 items-center gap-2 rounded-sm border border-line bg-surface px-2.5 py-1.5 text-[0.875rem] font-bold">
             <FileText size={16} aria-hidden="true" />

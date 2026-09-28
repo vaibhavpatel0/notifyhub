@@ -34,6 +34,7 @@ export default async function AdminLayout({ children, params }: { children: Reac
           { href: p("/admin/departments"), label: "Departments" },
           { href: p("/admin/admins"), label: "Team" },
           { href: p("/admin/profile"), label: "College profile" },
+          { href: p("/admin/profile#images"), label: "Logo & photos" },
         ]
       : []),
     { href: p("/admin/analytics"), label: "Analytics" },

@@ -1,5 +1,6 @@
 import "server-only";
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { portalPath } from "@/lib/tenant";
@@ -91,3 +92,24 @@ export async function requirePlatformAdmin() {
   if (!(await isPlatformAdmin())) redirect("/login?error=not_platform_admin");
   return user;
 }
+
+/**
+ * On public portal pages: is the visitor signed in as an admin of this college?
+ * Students have no sign-in cookie, so for them this returns straight away without
+ * contacting Supabase; only signed-in visitors pay for the check.
+ */
+export const getPortalAdminRole = cache(async (collegeId: string): Promise<AdminMember["role"] | null> => {
+  const jar = await cookies();
+  if (!jar.getAll().some((c) => /^sb-.+-auth-token/.test(c.name))) return null;
+  const user = await getUser();
+  if (!user) return null;
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("admins")
+    .select("role")
+    .eq("college_id", collegeId)
+    .eq("user_id", user.id)
+    .eq("status", "active")
+    .maybeSingle();
+  return (data?.role as AdminMember["role"] | undefined) ?? null;
+});

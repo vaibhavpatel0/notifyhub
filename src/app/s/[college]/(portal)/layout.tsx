@@ -4,6 +4,8 @@ import { DemoBanner } from "@/components/portal/DemoBanner";
 import { LiveUpdates } from "@/components/portal/LiveUpdates";
 import { PortalFooter } from "@/components/portal/PortalFooter";
 import { PortalHeader } from "@/components/portal/PortalHeader";
+import { PortalAdminBar } from "@/components/portal/PortalAdminBar";
+import { getPortalAdminRole } from "@/lib/auth";
 import { getLiveAnnouncements, getPortalStatus, getPublicCollege } from "@/lib/data";
 import { platformUrl, portalPath, portalUrl } from "@/lib/tenant";
 
@@ -41,7 +43,7 @@ export default async function PortalLayout({ children, params }: { children: Rea
     return <PortalUnavailable status={status} />;
   }
 
-  const [latest] = await getLiveAnnouncements(college.id, { limit: 1 });
+  const [[latest], adminRole] = await Promise.all([getLiveAnnouncements(college.id, { limit: 1 }), getPortalAdminRole(college.id)]);
   const p = (path: string) => portalPath(slug, path);
   const nav = [
     { href: p("/"), label: "Home" },
@@ -56,6 +58,7 @@ export default async function PortalLayout({ children, params }: { children: Rea
       <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-sm focus:bg-surface focus:px-3 focus:py-2">
         Skip to content
       </a>
+      {adminRole ? <PortalAdminBar role={adminRole} adminHref={p} /> : null}
       {college.is_demo ? <DemoBanner /> : null}
       <PortalHeader
         slug={slug}
